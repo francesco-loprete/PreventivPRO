@@ -45,11 +45,29 @@ npm run build
 npm run start
 ```
 
+## PWA
+
+PreventivPRO è una Progressive Web App (`@ducanh2912/next-pwa`):
+
+- `public/manifest.json` — manifest installabile
+- `public/icons/` — icone 72–512px + maskable + Apple Touch
+- Service worker in produzione (`public/sw.js` dopo `npm run build`)
+- Banner **Installa app** su mobile (Chrome/Edge/Android)
+
+In sviluppo la PWA è disabilitata; per testarla:
+
+```bash
+npm run build && npm run start
+```
+
+Rigenera le icone da SVG: `npm run generate:icons`
+
 ## Script
 
 | Comando | Uso |
 |---------|-----|
 | `npm run dev` | Dev server (Turbopack) |
-| `npm run build` | Build di produzione |
+| `npm run build` | Build di produzione (+ service worker PWA) |
 | `npm run start` | Server dopo `build` |
 | `npm run lint` | ESLint |
+| `npm run generate:icons` | Rigenera PNG da `public/icon-base.svg` |
