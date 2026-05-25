@@ -33,9 +33,6 @@ export const metadata: Metadata = {
     template: `%s | ${APP_NAME}`,
   },
   description: APP_DESCRIPTION,
-  icons: {
-  icon: '/branding/logo-preventivpro.png',
-},
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
