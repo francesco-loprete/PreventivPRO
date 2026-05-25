@@ -33,8 +33,19 @@ Vercel espone automaticamente `VERCEL_URL` in produzione; non va configurata a m
 
 ### Supabase in produzione
 
-- Tabella: `Preventivi` (colonne: `cliente`, `descrizione`, `prezzo`).
-- Esegui `supabase/rls-preventivi.sql` nel SQL Editor se insert/update/delete/select falliscono per RLS.
+- Tabella: `Preventivi` (colonne: `cliente`, `descrizione`, `prezzo`, opzionale `user_id`).
+- **Auth**: abilita Email in Authentication → Providers.
+- Redirect URL in Supabase → Authentication → URL Configuration:
+  - `http://localhost:3000/auth/callback` (dev)
+  - `https://tuo-dominio.vercel.app/auth/callback` (produzione)
+- Esegui `supabase/auth-rls-preventivi.sql` per RLS per utente autenticato.
+
+### Autenticazione
+
+- `/login` — accesso
+- `/registrazione` — nuovo account
+- `/preventivi` e `/nuovo-preventivo` — protette da middleware (redirect a login)
+- Sessione in cookie via `@supabase/ssr`
 - In Supabase → Authentication → URL Configuration, aggiungi il dominio Vercel se usi auth in futuro.
 
 ### Verifica pre-deploy

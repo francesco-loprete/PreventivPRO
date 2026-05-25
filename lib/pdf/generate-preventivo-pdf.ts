@@ -1,5 +1,5 @@
 import { jsPDF } from "jspdf";
-import type { Preventivo } from "@/lib/supabase/client";
+import type { Preventivo } from "@/lib/types/preventivo";
 
 const GREEN: [number, number, number] = [34, 197, 94];
 const DARK: [number, number, number] = [15, 15, 15];

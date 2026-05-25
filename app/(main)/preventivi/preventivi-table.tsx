@@ -3,7 +3,8 @@
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { generatePreventivoPdf } from "@/lib/pdf/generate-preventivo-pdf";
-import { supabase, type Preventivo } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/client";
+import type { Preventivo } from "@/lib/types/preventivo";
 
 const euroFormatter = new Intl.NumberFormat("it-IT", {
   style: "currency",
@@ -64,6 +65,7 @@ export function PreventiviTable({ preventivi: initialPreventivi }: PreventiviTab
     setLoading(true);
     setError(null);
 
+    const supabase = createClient();
     const { error: updateError } = await supabase
       .from("Preventivi")
       .update({
@@ -93,6 +95,7 @@ export function PreventiviTable({ preventivi: initialPreventivi }: PreventiviTab
     setLoading(true);
     setError(null);
 
+    const supabase = createClient();
     const { error: deleteError } = await supabase
       .from("Preventivi")
       .delete()

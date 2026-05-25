@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
-import { supabase } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 
 export function PreventivoForm() {
   const router = useRouter();
@@ -37,11 +37,30 @@ export function PreventivoForm() {
 
     setLoading(true);
 
-    const { error: insertError } = await supabase.from("Preventivi").insert({
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      setLoading(false);
+      setError("Sessione scaduta. Accedi di nuovo.");
+      return;
+    }
+
+    const row: {
+      cliente: string;
+      descrizione: string;
+      prezzo: number;
+      user_id?: string;
+    } = {
       cliente: clienteTrimmed,
       descrizione: descrizioneTrimmed,
       prezzo: prezzoNumber,
-    });
+      user_id: user.id,
+    };
+
+    const { error: insertError } = await supabase.from("Preventivi").insert(row);
 
     setLoading(false);
 

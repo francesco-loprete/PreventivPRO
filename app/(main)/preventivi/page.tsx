@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { isSupabaseConfigured, supabase } from "@/lib/supabase/client";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
+import { createClient } from "@/lib/supabase/server";
 import { PreventiviTable } from "./preventivi-table";
 
 export const dynamic = "force-dynamic";
@@ -16,6 +17,7 @@ export default async function PreventiviPage() {
     );
   }
 
+  const supabase = await createClient();
   const { data: preventivi, error } = await supabase
     .from("Preventivi")
     .select("id, cliente, descrizione, prezzo")
