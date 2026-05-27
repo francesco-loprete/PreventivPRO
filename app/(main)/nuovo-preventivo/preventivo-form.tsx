@@ -34,9 +34,6 @@ export function PreventivoForm() {
     },
   ]);
   const [loading, setLoading] = useState(false);
-  const [aiPrompt, setAiPrompt] = useState("");
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
@@ -74,47 +71,6 @@ export function PreventivoForm() {
   function rimuoviVoce(index: number) {
     if (voci.length <= 1) return;
     setVoci(voci.filter((_, i) => i !== index));
-  }
-
-  async function handleGeneraAi() {
-    const prompt = aiPrompt.trim();
-
-    if (!prompt) {
-      setAiError("Scrivi una breve descrizione del lavoro prima di generare.");
-      return;
-    }
-
-    setAiLoading(true);
-    setAiError(null);
-
-    try {
-      const response = await fetch("/api/ai/generate-preventivo", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt }),
-      });
-
-      const data = (await response.json()) as {
-        description?: string;
-        error?: string;
-      };
-
-      if (!response.ok) {
-        setAiError(data.error ?? "Generazione non riuscita.");
-        return;
-      }
-
-      if (!data.description?.trim()) {
-        setAiError("OpenAI non ha restituito una descrizione valida.");
-        return;
-      }
-
-      aggiornaVoce(0, "descrizione", data.description.trim());
-    } catch {
-      setAiError("Errore di rete durante la generazione. Riprova.");
-    } finally {
-      setAiLoading(false);
-    }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -200,8 +156,6 @@ export function PreventivoForm() {
       setDescrizione("");
       setPrezzo("");
       setQuantita("");
-      setAiPrompt("");
-      setAiError(null);
       setVoci([{ descrizione: "", quantita: 1, unita: "pz", prezzo: 0 }]);
       router.refresh();
     } catch (err) {
@@ -234,42 +188,6 @@ export function PreventivoForm() {
         />
       </div>
 
-      <div className="mb-6 rounded-xl border border-border bg-slate-950/40 p-4">
-        <label htmlFor="ai-prompt" className="block mb-2 text-muted text-sm">
-          Descrizione breve del lavoro
-        </label>
-        <textarea
-          id="ai-prompt"
-          value={aiPrompt}
-          onChange={(e) => {
-            setAiPrompt(e.target.value);
-            setAiError(null);
-          }}
-          placeholder="Es. rifacimento bagno 6mq"
-          rows={2}
-          className="input-field min-h-[72px] resize-y"
-          disabled={loading || aiLoading}
-        />
-        <div className="mt-3 flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={handleGeneraAi}
-            disabled={loading || aiLoading || !aiPrompt.trim()}
-            className="btn-secondary text-sm py-2 px-4 border-accent/40 hover:border-accent hover:text-accent"
-          >
-            {aiLoading ? "Generazione..." : "Genera con AI"}
-          </button>
-          <p className="text-xs text-muted">
-            L&apos;AI compila la descrizione professionale della prima voce.
-          </p>
-        </div>
-        {aiError && (
-          <p className="mt-3 text-red-400 text-sm" role="alert">
-            {aiError}
-          </p>
-        )}
-      </div>
-
       <div className="mb-6">
         <label className="block mb-2 text-muted text-sm">Voci Preventivo</label>
 
@@ -287,32 +205,19 @@ export function PreventivoForm() {
             <div className="space-y-2">
               {voci.map((voce, index) => (
                 <div key={index} className={rowGrid}>
-                  {index === 0 ? (
-                    <textarea
-                      id="descrizione"
-                      name="descrizione"
-                      required
-                      value={voce.descrizione}
-                      onChange={(e) =>
-                        aggiornaVoce(index, "descrizione", e.target.value)
-                      }
-                      placeholder="Descrizione professionale del lavoro..."
-                      rows={4}
-                      className={`${inputCompact} min-h-[96px] resize-y`}
-                      disabled={loading || aiLoading}
-                    />
-                  ) : (
-                    <input
-                      type="text"
-                      value={voce.descrizione}
-                      onChange={(e) =>
-                        aggiornaVoce(index, "descrizione", e.target.value)
-                      }
-                      placeholder="Lavoro..."
-                      className={inputCompact}
-                      disabled={loading || aiLoading}
-                    />
-                  )}
+                  <input
+                    id={index === 0 ? "descrizione" : undefined}
+                    name={index === 0 ? "descrizione" : undefined}
+                    type="text"
+                    required={index === 0}
+                    value={voce.descrizione}
+                    onChange={(e) =>
+                      aggiornaVoce(index, "descrizione", e.target.value)
+                    }
+                    placeholder="Lavoro..."
+                    className={inputCompact}
+                    disabled={loading}
+                  />
 
                   <input
                     type="number"
@@ -324,7 +229,7 @@ export function PreventivoForm() {
                       aggiornaVoce(index, "quantita", Number(e.target.value) || 0)
                     }
                     className={`${inputCompact} text-center`}
-                    disabled={loading || aiLoading}
+                    disabled={loading}
                   />
 
                   <input
@@ -333,7 +238,7 @@ export function PreventivoForm() {
                     value={voce.unita}
                     onChange={(e) => aggiornaVoce(index, "unita", e.target.value)}
                     className={`${inputCompact} text-center`}
-                    disabled={loading || aiLoading}
+                    disabled={loading}
                     title="Unità di misura"
                   />
 
@@ -347,7 +252,7 @@ export function PreventivoForm() {
                       aggiornaVoce(index, "prezzo", Number(e.target.value) || 0)
                     }
                     className={`${inputCompact} text-center`}
-                    disabled={loading || aiLoading}
+                    disabled={loading}
                   />
 
                   <input
@@ -362,7 +267,7 @@ export function PreventivoForm() {
                     <button
                       type="button"
                       onClick={() => rimuoviVoce(index)}
-                      disabled={loading || aiLoading}
+                      disabled={loading}
                       className="text-red-400 hover:text-red-300 text-sm leading-none"
                       aria-label="Rimuovi riga"
                     >
@@ -380,7 +285,7 @@ export function PreventivoForm() {
         <button
           type="button"
           onClick={aggiungiVoce}
-          disabled={loading || aiLoading}
+          disabled={loading}
           className="mt-4 btn-secondary text-sm py-2 px-4"
         >
           + Aggiungi Riga
@@ -408,7 +313,7 @@ export function PreventivoForm() {
 
       <button
         type="submit"
-        disabled={loading || aiLoading}
+        disabled={loading}
         className="btn-primary px-6 py-4"
       >
         {loading ? "Salvataggio..." : "Salva Preventivo"}
