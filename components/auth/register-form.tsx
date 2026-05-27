@@ -61,7 +61,7 @@ export function RegisterForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       <div>
-        <label htmlFor="email" className="block mb-2 text-gray-400 text-sm">
+        <label htmlFor="email" className="block mb-2 text-muted text-sm">
           Email
         </label>
         <input
@@ -73,13 +73,13 @@ export function RegisterForm() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="nome@azienda.it"
-          className="w-full bg-black border border-gray-700 rounded-xl p-4"
+          className="input-field"
           disabled={loading}
         />
       </div>
 
       <div>
-        <label htmlFor="password" className="block mb-2 text-gray-400 text-sm">
+        <label htmlFor="password" className="block mb-2 text-muted text-sm">
           Password
         </label>
         <input
@@ -92,13 +92,13 @@ export function RegisterForm() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Minimo 6 caratteri"
-          className="w-full bg-black border border-gray-700 rounded-xl p-4"
+          className="input-field"
           disabled={loading}
         />
       </div>
 
       <div>
-        <label htmlFor="confirmPassword" className="block mb-2 text-gray-400 text-sm">
+        <label htmlFor="confirmPassword" className="block mb-2 text-muted text-sm">
           Conferma password
         </label>
         <input
@@ -110,7 +110,7 @@ export function RegisterForm() {
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
           placeholder="Ripeti la password"
-          className="w-full bg-black border border-gray-700 rounded-xl p-4"
+          className="input-field"
           disabled={loading}
         />
       </div>
@@ -122,7 +122,7 @@ export function RegisterForm() {
       )}
 
       {success && (
-        <p className="text-green-400 text-sm" role="status">
+        <p className="text-accent text-sm" role="status">
           {success}
         </p>
       )}
@@ -130,14 +130,14 @@ export function RegisterForm() {
       <button
         type="submit"
         disabled={loading}
-        className="w-full bg-green-500 text-black py-4 rounded-xl font-bold hover:bg-green-400 disabled:opacity-50"
+        className="w-full btn-primary py-4"
       >
         {loading ? "Registrazione..." : "Crea account"}
       </button>
 
-      <p className="text-center text-sm text-gray-400">
+      <p className="text-center text-sm text-muted">
         Hai già un account?{" "}
-        <Link href="/login" className="text-green-500 hover:text-green-400 font-medium">
+        <Link href="/login" className="text-accent hover:text-sky-400 font-medium">
           Accedi
         </Link>
       </p>

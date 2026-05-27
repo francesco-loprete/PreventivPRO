@@ -21,7 +21,7 @@ export function LogoutButton() {
       type="button"
       onClick={handleLogout}
       disabled={loading}
-      className="text-left text-sm text-gray-400 hover:text-red-400 transition-colors disabled:opacity-50"
+      className="text-left text-sm text-muted hover:text-red-400 transition-colors disabled:opacity-50"
     >
       {loading ? "Uscita..." : "Esci"}
     </button>

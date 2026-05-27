@@ -5,22 +5,21 @@ import { FormEvent, useState } from "react";
 import { generatePreventivoPdf } from "@/lib/pdf/generate-preventivo-pdf";
 import { createClient } from "@/lib/supabase/client";
 import type { Preventivo } from "@/lib/types/preventivo";
+import { getPreventivoTotale, rlsErrorHint } from "@/lib/types/preventivo";
 
 const euroFormatter = new Intl.NumberFormat("it-IT", {
   style: "currency",
   currency: "EUR",
 });
 
+const dateFormatter = new Intl.DateTimeFormat("it-IT", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+
 type PreventiviTableProps = {
   preventivi: Preventivo[];
 };
-
-function rlsHint(code: string | undefined) {
-  if (code === "42501") {
-    return " Permesso negato: esegui anche le policy update/delete in supabase/rls-preventivi.sql.";
-  }
-  return "";
-}
 
 export function PreventiviTable({ preventivi: initialPreventivi }: PreventiviTableProps) {
   const router = useRouter();
@@ -36,8 +35,8 @@ export function PreventiviTable({ preventivi: initialPreventivi }: PreventiviTab
     setError(null);
     setEditing(preventivo);
     setCliente(preventivo.cliente);
-    setDescrizione(preventivo.descrizione);
-    setPrezzo(String(preventivo.prezzo));
+    setDescrizione(preventivo.descrizione ?? "");
+    setPrezzo(String(getPreventivoTotale(preventivo)));
   }
 
   function closeEdit() {
@@ -66,19 +65,30 @@ export function PreventiviTable({ preventivi: initialPreventivi }: PreventiviTab
     setError(null);
 
     const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      setLoading(false);
+      setError("Sessione scaduta. Accedi di nuovo.");
+      return;
+    }
+
     const { error: updateError } = await supabase
-      .from("Preventivi")
+      .from("preventivi")
       .update({
         cliente: clienteTrimmed,
         descrizione: descrizioneTrimmed,
         prezzo: prezzoNumber,
       })
-      .eq("id", editing.id);
+      .eq("id", editing.id)
+      .eq("user_id", user.id);
 
     setLoading(false);
 
     if (updateError) {
-      setError(updateError.message + rlsHint(updateError.code));
+      setError(updateError.message + rlsErrorHint(updateError.code));
       return;
     }
 
@@ -96,15 +106,26 @@ export function PreventiviTable({ preventivi: initialPreventivi }: PreventiviTab
     setError(null);
 
     const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      setLoading(false);
+      setError("Sessione scaduta. Accedi di nuovo.");
+      return;
+    }
+
     const { error: deleteError } = await supabase
-      .from("Preventivi")
+      .from("preventivi")
       .delete()
-      .eq("id", preventivo.id);
+      .eq("id", preventivo.id)
+      .eq("user_id", user.id);
 
     setLoading(false);
 
     if (deleteError) {
-      setError(deleteError.message + rlsHint(deleteError.code));
+      setError(deleteError.message + rlsErrorHint(deleteError.code));
       return;
     }
 
@@ -124,6 +145,20 @@ export function PreventiviTable({ preventivi: initialPreventivi }: PreventiviTab
     }
   }
 
+  function handleWhatsApp(preventivo: Preventivo) {
+    const totale = getPreventivoTotale(preventivo);
+    const totaleFormatted = totale.toLocaleString("it-IT", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+    const message = `Ciao, ti invio il preventivo di ${preventivo.cliente} per un totale di €${totaleFormatted}`;
+    window.open(
+      `https://wa.me/?text=${encodeURIComponent(message)}`,
+      "_blank",
+      "noopener,noreferrer"
+    );
+  }
+
   return (
     <>
       {error && !editing && (
@@ -132,21 +167,21 @@ export function PreventiviTable({ preventivi: initialPreventivi }: PreventiviTab
         </p>
       )}
 
-      <div className="bg-[#1a1a1a] border border-gray-800 rounded-2xl overflow-hidden">
+      <div className="card overflow-hidden p-0">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="border-b border-gray-800 bg-black/40">
-                <th className="px-6 py-4 text-sm font-semibold text-gray-400 uppercase tracking-wide">
+              <tr className="border-b border-border bg-slate-950/40">
+                <th className="px-6 py-4 text-sm font-semibold text-muted uppercase tracking-wide">
                   Cliente
                 </th>
-                <th className="px-6 py-4 text-sm font-semibold text-gray-400 uppercase tracking-wide">
-                  Descrizione
+                <th className="px-6 py-4 text-sm font-semibold text-muted uppercase tracking-wide text-right">
+                  Totale
                 </th>
-                <th className="px-6 py-4 text-sm font-semibold text-gray-400 uppercase tracking-wide text-right">
-                  Prezzo
+                <th className="px-6 py-4 text-sm font-semibold text-muted uppercase tracking-wide">
+                  Data
                 </th>
-                <th className="px-6 py-4 text-sm font-semibold text-gray-400 uppercase tracking-wide text-right">
+                <th className="px-6 py-4 text-sm font-semibold text-muted uppercase tracking-wide text-right">
                   Azioni
                 </th>
               </tr>
@@ -155,16 +190,18 @@ export function PreventiviTable({ preventivi: initialPreventivi }: PreventiviTab
               {initialPreventivi.map((preventivo) => (
                 <tr
                   key={preventivo.id}
-                  className="border-b border-gray-800/80 last:border-b-0 hover:bg-white/[0.03] transition-colors"
+                  className="border-b border-border/80 last:border-b-0 hover:bg-white/[0.03] transition-colors"
                 >
-                  <td className="px-6 py-4 font-medium text-white whitespace-nowrap">
+                  <td className="px-6 py-4 font-medium text-foreground whitespace-nowrap">
                     {preventivo.cliente}
                   </td>
-                  <td className="px-6 py-4 text-gray-300 max-w-md">
-                    {preventivo.descrizione}
+                  <td className="px-6 py-4 text-accent font-semibold text-right whitespace-nowrap">
+                    {euroFormatter.format(getPreventivoTotale(preventivo))}
                   </td>
-                  <td className="px-6 py-4 text-green-400 font-semibold text-right whitespace-nowrap">
-                    {euroFormatter.format(preventivo.prezzo)}
+                  <td className="px-6 py-4 text-muted whitespace-nowrap">
+                    {preventivo.created_at
+                      ? dateFormatter.format(new Date(preventivo.created_at))
+                      : "—"}
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center justify-end gap-2 flex-wrap">
@@ -172,15 +209,23 @@ export function PreventiviTable({ preventivi: initialPreventivi }: PreventiviTab
                         type="button"
                         onClick={() => handlePdf(preventivo)}
                         disabled={loading || pdfGeneratingId === preventivo.id}
-                        className="px-3 py-1.5 text-sm rounded-lg border border-gray-600 text-gray-300 hover:border-sky-500 hover:text-sky-400 transition-colors disabled:opacity-50"
+                        className="btn-ghost hover:border-accent hover:text-accent"
                       >
                         {pdfGeneratingId === preventivo.id ? "PDF..." : "PDF"}
                       </button>
                       <button
                         type="button"
+                        onClick={() => handleWhatsApp(preventivo)}
+                        disabled={loading}
+                        className="btn-ghost hover:border-[#25D366] hover:text-[#25D366]"
+                      >
+                        WhatsApp
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => openEdit(preventivo)}
                         disabled={loading}
-                        className="px-3 py-1.5 text-sm rounded-lg border border-gray-600 text-gray-300 hover:border-green-500 hover:text-green-400 transition-colors disabled:opacity-50"
+                        className="btn-ghost hover:border-accent hover:text-accent"
                       >
                         Modifica
                       </button>
@@ -203,21 +248,21 @@ export function PreventiviTable({ preventivi: initialPreventivi }: PreventiviTab
 
       {editing && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4"
           role="dialog"
           aria-modal="true"
           aria-labelledby="edit-title"
         >
           <form
             onSubmit={handleUpdate}
-            className="w-full max-w-lg bg-[#1a1a1a] border border-gray-800 rounded-2xl p-8 shadow-2xl"
+            className="w-full max-w-lg card p-8 shadow-2xl shadow-black/40"
           >
-            <h2 id="edit-title" className="text-2xl font-bold text-green-500 mb-6">
-              Modifica preventivo
+            <h2 id="edit-title" className="text-2xl font-bold mb-6">
+              Modifica <span className="text-accent">preventivo</span>
             </h2>
 
             <div className="mb-4">
-              <label htmlFor="edit-cliente" className="block mb-2 text-gray-400">
+              <label htmlFor="edit-cliente" className="block mb-2 text-muted text-sm">
                 Cliente
               </label>
               <input
@@ -226,13 +271,13 @@ export function PreventiviTable({ preventivi: initialPreventivi }: PreventiviTab
                 required
                 value={cliente}
                 onChange={(e) => setCliente(e.target.value)}
-                className="w-full bg-black border border-gray-700 rounded-xl p-4"
+                className="input-field"
                 disabled={loading}
               />
             </div>
 
             <div className="mb-4">
-              <label htmlFor="edit-descrizione" className="block mb-2 text-gray-400">
+              <label htmlFor="edit-descrizione" className="block mb-2 text-muted text-sm">
                 Descrizione
               </label>
               <textarea
@@ -240,13 +285,13 @@ export function PreventiviTable({ preventivi: initialPreventivi }: PreventiviTab
                 required
                 value={descrizione}
                 onChange={(e) => setDescrizione(e.target.value)}
-                className="w-full bg-black border border-gray-700 rounded-xl p-4 h-28"
+                className="input-field h-28 resize-none"
                 disabled={loading}
               />
             </div>
 
             <div className="mb-6">
-              <label htmlFor="edit-prezzo" className="block mb-2 text-gray-400">
+              <label htmlFor="edit-prezzo" className="block mb-2 text-muted text-sm">
                 Prezzo €
               </label>
               <input
@@ -257,7 +302,7 @@ export function PreventiviTable({ preventivi: initialPreventivi }: PreventiviTab
                 step={0.01}
                 value={prezzo}
                 onChange={(e) => setPrezzo(e.target.value)}
-                className="w-full bg-black border border-gray-700 rounded-xl p-4"
+                className="input-field"
                 disabled={loading}
               />
             </div>
@@ -273,14 +318,14 @@ export function PreventiviTable({ preventivi: initialPreventivi }: PreventiviTab
                 type="button"
                 onClick={closeEdit}
                 disabled={loading}
-                className="px-5 py-3 rounded-xl border border-gray-600 text-gray-300 hover:border-gray-500 disabled:opacity-50"
+                className="btn-secondary disabled:opacity-50"
               >
                 Annulla
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="px-5 py-3 rounded-xl bg-green-500 text-black font-bold hover:bg-green-400 disabled:opacity-50"
+                className="btn-primary disabled:opacity-50"
               >
                 {loading ? "Salvataggio..." : "Salva modifiche"}
               </button>

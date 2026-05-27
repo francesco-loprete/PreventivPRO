@@ -60,26 +60,30 @@ export function PwaInstallPrompt() {
 
   return (
     <div
-      className="fixed bottom-4 left-4 right-4 z-40 mx-auto max-w-lg rounded-2xl border border-gray-800 bg-[#1a1a1a] p-4 shadow-2xl md:left-auto md:right-6"
+      className="fixed bottom-4 left-4 right-4 z-40 mx-auto max-w-lg card p-4 shadow-2xl shadow-black/40 md:left-auto md:right-6"
       role="region"
       aria-label="Installa app"
     >
-      <p className="text-sm text-gray-300 mb-3">
-        Installa <span className="text-green-500 font-semibold">PreventivPRO</span>{" "}
+      <p className="text-sm text-muted mb-3">
+        Installa{" "}
+        <span className="font-semibold">
+          <span className="text-foreground">Preventiv</span>
+          <span className="text-accent">PRO</span>
+        </span>{" "}
         sul telefono per un accesso rapido, anche offline.
       </p>
       <div className="flex gap-2">
         <button
           type="button"
           onClick={handleInstall}
-          className="flex-1 bg-green-500 text-black px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-green-400"
+          className="flex-1 btn-primary text-sm py-2.5"
         >
           Installa app
         </button>
         <button
           type="button"
           onClick={handleDismiss}
-          className="px-4 py-2.5 rounded-xl border border-gray-700 text-gray-400 text-sm hover:border-gray-600"
+          className="btn-secondary text-sm py-2.5"
         >
           Dopo
         </button>

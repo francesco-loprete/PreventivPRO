@@ -1,5 +1,7 @@
 import { jsPDF } from "jspdf";
 import type { Preventivo } from "@/lib/types/preventivo";
+import { getPreventivoTotale } from "@/lib/types/preventivo";
+import { getStoredLogoDataUrl, loadSettings } from "@/lib/settings/storage";
 
 const GREEN: [number, number, number] = [34, 197, 94];
 const DARK: [number, number, number] = [15, 15, 15];
@@ -11,40 +13,257 @@ const euroFormatter = new Intl.NumberFormat("it-IT", {
   currency: "EUR",
 });
 
-async function loadLogoDataUrl(): Promise<string | null> {
-  try {
-    const response = await fetch("/logo-preventivpro.svg");
-    if (!response.ok) return null;
+const HEADER_HEIGHT_MM = 48;
+const LOGO_MAX_WIDTH_MM = 110;
 
-    const svgText = await response.text();
-    const blob = new Blob([svgText], { type: "image/svg+xml;charset=utf-8" });
-    const objectUrl = URL.createObjectURL(blob);
+function pxToMm(px: number): number {
+  return px * 0.264583333;
+}
 
-    return new Promise((resolve) => {
-      const image = new Image();
-      image.onload = () => {
-        const canvas = document.createElement("canvas");
-        canvas.width = 560;
-        canvas.height = 128;
-        const context = canvas.getContext("2d");
-        if (!context) {
-          URL.revokeObjectURL(objectUrl);
-          resolve(null);
-          return;
-        }
-        context.drawImage(image, 0, 0, 560, 128);
-        URL.revokeObjectURL(objectUrl);
-        resolve(canvas.toDataURL("image/png"));
-      };
-      image.onerror = () => {
-        URL.revokeObjectURL(objectUrl);
-        resolve(null);
-      };
-      image.src = objectUrl;
-    });
-  } catch {
-    return null;
+function fitContain(
+  naturalWidth: number,
+  naturalHeight: number,
+  maxWidth: number,
+  maxHeight: number
+): { width: number; height: number } {
+  if (naturalWidth <= 0 || naturalHeight <= 0) {
+    return { width: maxWidth, height: maxHeight };
   }
+
+  const scale = Math.min(maxWidth / naturalWidth, maxHeight / naturalHeight);
+  return {
+    width: naturalWidth * scale,
+    height: naturalHeight * scale,
+  };
+}
+
+function getImageFormat(dataUrl: string): "PNG" | "JPEG" | "WEBP" {
+  if (dataUrl.startsWith("data:image/jpeg") || dataUrl.startsWith("data:image/jpg")) {
+    return "JPEG";
+  }
+  if (dataUrl.startsWith("data:image/webp")) {
+    return "WEBP";
+  }
+  return "PNG";
+}
+
+async function getImageNaturalSize(
+  dataUrl: string
+): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () =>
+      resolve({
+        width: img.naturalWidth || 1,
+        height: img.naturalHeight || 1,
+      });
+    img.onerror = () => reject(new Error("Impossibile leggere il logo"));
+    img.src = dataUrl;
+  });
+}
+
+async function rasterizeToHighResPng(
+  source: string,
+  naturalWidth: number,
+  naturalHeight: number
+): Promise<string> {
+  const scale = 3;
+  const width = Math.max(Math.round(naturalWidth * scale), 1);
+  const height = Math.max(Math.round(naturalHeight * scale), 1);
+
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        reject(new Error("Canvas non disponibile"));
+        return;
+      }
+      ctx.clearRect(0, 0, width, height);
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL("image/png"));
+    };
+    img.onerror = () => reject(new Error("Rasterizzazione logo fallita"));
+    img.src = source;
+  });
+}
+
+async function prepareLogoForPdf(
+  dataUrl: string
+): Promise<{ dataUrl: string; width: number; height: number }> {
+  const natural = await getImageNaturalSize(dataUrl);
+  const isSvg = dataUrl.startsWith("data:image/svg");
+
+  if (isSvg) {
+    const png = await rasterizeToHighResPng(
+      dataUrl,
+      natural.width,
+      natural.height
+    );
+    const rasterized = await getImageNaturalSize(png);
+    return { dataUrl: png, width: rasterized.width, height: rasterized.height };
+  }
+
+  return { dataUrl, width: natural.width, height: natural.height };
+}
+
+async function drawHeaderLogo(
+  doc: jsPDF,
+  logoDataUrl: string,
+  margin: number,
+  maxWidthMm: number
+): Promise<void> {
+  const prepared = await prepareLogoForPdf(logoDataUrl);
+  const maxHeightMm = pxToMm(80);
+
+  const { width, height } = fitContain(
+    prepared.width,
+    prepared.height,
+    maxWidthMm,
+    maxHeightMm
+  );
+
+  const x = margin;
+  const y = (HEADER_HEIGHT_MM - height) / 2;
+  const format = getImageFormat(prepared.dataUrl);
+
+  doc.addImage(
+    prepared.dataUrl,
+    format,
+    x,
+    y,
+    width,
+    height,
+    undefined,
+    "NONE"
+  );
+}
+
+type VocePdf = {
+  descrizione: string;
+  quantita: number;
+  unita: string;
+  prezzo: number;
+  totale: number;
+};
+
+function parseVociFromDescrizione(descrizione: string | null | undefined): VocePdf[] {
+  if (!descrizione?.trim()) return [];
+
+  const voci: VocePdf[] = [];
+
+  for (const line of descrizione.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    const withUnit =
+      /^(.+?) \((\d+(?:[.,]\d+)?) (\S+) × €(\d+(?:[.,]\d+)?) = €(\d+(?:[.,]\d+)?)\)$/;
+    const withoutUnit =
+      /^(.+?) \((\d+(?:[.,]\d+)?) × €(\d+(?:[.,]\d+)?)(?: = €(\d+(?:[.,]\d+)?))?\)$/;
+
+    const matchUnit = trimmed.match(withUnit);
+    if (matchUnit) {
+      voci.push({
+        descrizione: matchUnit[1].trim(),
+        quantita: Number(matchUnit[2].replace(",", ".")),
+        unita: matchUnit[3],
+        prezzo: Number(matchUnit[4].replace(",", ".")),
+        totale: Number(matchUnit[5].replace(",", ".")),
+      });
+      continue;
+    }
+
+    const matchSimple = trimmed.match(withoutUnit);
+    if (matchSimple) {
+      const quantita = Number(matchSimple[2].replace(",", "."));
+      const prezzo = Number(matchSimple[3].replace(",", "."));
+      const totale = matchSimple[4]
+        ? Number(matchSimple[4].replace(",", "."))
+        : quantita * prezzo;
+      voci.push({
+        descrizione: matchSimple[1].trim(),
+        quantita,
+        unita: "pz",
+        prezzo,
+        totale,
+      });
+      continue;
+    }
+
+    voci.push({
+      descrizione: trimmed,
+      quantita: 1,
+      unita: "—",
+      prezzo: 0,
+      totale: 0,
+    });
+  }
+
+  return voci;
+}
+
+async function loadLogoDataUrl(): Promise<string | null> {
+  const storedLogo = getStoredLogoDataUrl();
+  if (storedLogo) return storedLogo;
+
+  const paths = [
+    "/branding/logo-preventivpro.png",
+    "/logo-preventivpro.svg",
+  ];
+
+  for (const path of paths) {
+    try {
+      const response = await fetch(path);
+      if (!response.ok) continue;
+
+      if (path.endsWith(".png")) {
+        const blob = await response.blob();
+        return await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => resolve(null);
+          reader.readAsDataURL(blob);
+        });
+      }
+
+      const svgText = await response.text();
+      const blob = new Blob([svgText], { type: "image/svg+xml;charset=utf-8" });
+      const objectUrl = URL.createObjectURL(blob);
+
+      try {
+        const natural = await new Promise<{ width: number; height: number }>(
+          (resolve, reject) => {
+            const image = new Image();
+            image.onload = () =>
+              resolve({
+                width: image.naturalWidth || 560,
+                height: image.naturalHeight || 128,
+              });
+            image.onerror = reject;
+            image.src = objectUrl;
+          }
+        );
+
+        const png = await rasterizeToHighResPng(
+          objectUrl,
+          natural.width,
+          natural.height
+        );
+        return png;
+      } catch {
+        return null;
+      } finally {
+        URL.revokeObjectURL(objectUrl);
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
 }
 
 function drawLogoFallback(doc: jsPDF, x: number, y: number) {
@@ -59,20 +278,37 @@ function drawLogoFallback(doc: jsPDF, x: number, y: number) {
   doc.text("PreventivPRO", x + 18, y + 10.5);
 }
 
+function sanitizeFilename(cliente: string): string {
+  return (
+    cliente
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "-")
+      .replace(/[^a-z0-9-]/gi, "") || "cliente"
+  );
+}
+
 export async function generatePreventivoPdf(preventivo: Preventivo) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 20;
   const contentWidth = pageWidth - margin * 2;
+  const totaleGenerale = getPreventivoTotale(preventivo);
+  const voci = parseVociFromDescrizione(preventivo.descrizione);
 
   doc.setFillColor(...DARK);
-  doc.rect(0, 0, pageWidth, 48, "F");
+  doc.rect(0, 0, pageWidth, HEADER_HEIGHT_MM, "F");
 
   const logo = await loadLogoDataUrl();
   if (logo) {
-    doc.addImage(logo, "PNG", margin, 14, 62, 14);
+    try {
+      await drawHeaderLogo(doc, logo, margin, LOGO_MAX_WIDTH_MM);
+    } catch {
+      drawLogoFallback(doc, margin, (HEADER_HEIGHT_MM - 14) / 2);
+    }
   } else {
-    drawLogoFallback(doc, margin, 16);
+    drawLogoFallback(doc, margin, (HEADER_HEIGHT_MM - 14) / 2);
   }
 
   doc.setFont("helvetica", "bold");
@@ -83,9 +319,11 @@ export async function generatePreventivoPdf(preventivo: Preventivo) {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(160, 160, 160);
-  const dateLabel = new Intl.DateTimeFormat("it-IT", {
-    dateStyle: "long",
-  }).format(new Date());
+  const dateLabel = preventivo.created_at
+    ? new Intl.DateTimeFormat("it-IT", { dateStyle: "long" }).format(
+        new Date(preventivo.created_at)
+      )
+    : new Intl.DateTimeFormat("it-IT", { dateStyle: "long" }).format(new Date());
   doc.text(`N° ${preventivo.id} · ${dateLabel}`, pageWidth - margin, 30, {
     align: "right",
   });
@@ -112,16 +350,65 @@ export async function generatePreventivoPdf(preventivo: Preventivo) {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
   doc.setTextColor(...GRAY);
-  doc.text("DESCRIZIONE LAVORO", margin, y);
-  y += 7;
+  doc.text("VOCI PREVENTIVO", margin, y);
+  y += 8;
+
+  const colDesc = margin;
+  const colQty = margin + 78;
+  const colUnit = margin + 98;
+  const colPrice = margin + 118;
+  const colTotal = margin + 148;
+
+  doc.setFillColor(240, 240, 240);
+  doc.rect(margin, y - 2, contentWidth, 8, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(...GRAY);
+  doc.text("Descrizione", colDesc + 2, y + 4);
+  doc.text("Q.tà", colQty, y + 4);
+  doc.text("U.M.", colUnit, y + 4);
+  doc.text("Prezzo", colPrice, y + 4);
+  doc.text("Totale", colTotal, y + 4);
+  y += 10;
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(11);
+  doc.setFontSize(9);
   doc.setTextColor(55, 55, 55);
-  const descriptionLines = doc.splitTextToSize(preventivo.descrizione, contentWidth);
-  doc.text(descriptionLines, margin, y);
-  y += descriptionLines.length * 6 + 14;
 
+  const rows =
+    voci.length > 0
+      ? voci
+      : [
+          {
+            descrizione: preventivo.descrizione?.trim() || "—",
+            quantita: 1,
+            unita: "—",
+            prezzo: totaleGenerale,
+            totale: totaleGenerale,
+          },
+        ];
+
+  for (const voce of rows) {
+    if (y > pageHeight - 50) {
+      doc.addPage();
+      y = 20;
+    }
+
+    const descLines = doc.splitTextToSize(voce.descrizione, 72);
+    const rowHeight = Math.max(descLines.length * 5, 7);
+
+    doc.text(descLines, colDesc + 2, y + 4);
+    doc.text(String(voce.quantita), colQty, y + 4);
+    doc.text(voce.unita, colUnit, y + 4);
+    doc.text(euroFormatter.format(voce.prezzo), colPrice, y + 4);
+    doc.text(euroFormatter.format(voce.totale), colTotal, y + 4);
+
+    doc.setDrawColor(230, 230, 230);
+    doc.line(margin, y + rowHeight + 2, pageWidth - margin, y + rowHeight + 2);
+    y += rowHeight + 4;
+  }
+
+  y += 6;
   doc.setDrawColor(...GREEN);
   doc.setLineWidth(0.8);
   doc.line(margin, y, pageWidth - margin, y);
@@ -133,32 +420,37 @@ export async function generatePreventivoPdf(preventivo: Preventivo) {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
   doc.setTextColor(180, 180, 180);
-  doc.text("TOTALE PREVENTIVO", margin + 10, y + 11);
+  doc.text("TOTALE GENERALE", margin + 10, y + 11);
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(20);
   doc.setTextColor(...GREEN);
-  doc.text(euroFormatter.format(preventivo.prezzo), pageWidth - margin - 10, y + 19, {
-    align: "right",
-  });
+  doc.text(
+    euroFormatter.format(totaleGenerale),
+    pageWidth - margin - 10,
+    y + 19,
+    { align: "right" }
+  );
 
   y += 40;
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(...GRAY);
-  doc.text(
-    "Documento generato automaticamente da PreventivPRO.",
-    margin,
-    y
-  );
-  doc.text("Valido salvo diversa indicazione scritta.", margin, y + 5);
+  doc.text("Documento generato automaticamente da PreventivPRO.", margin, y);
 
-  const safeName = preventivo.cliente
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9-]/gi, "");
+  const settings = loadSettings();
+  const footerLines: string[] = [];
+  if (settings.companyName.trim()) footerLines.push(settings.companyName.trim());
+  if (settings.phone.trim()) footerLines.push(`Tel: ${settings.phone.trim()}`);
+  if (settings.email.trim()) footerLines.push(settings.email.trim());
 
-  doc.save(`preventivo-${safeName || "cliente"}-${preventivo.id}.pdf`);
+  if (footerLines.length > 0) {
+    doc.text(footerLines.join(" · "), margin, y + 5);
+    doc.text("Valido salvo diversa indicazione scritta.", margin, y + 10);
+  } else {
+    doc.text("Valido salvo diversa indicazione scritta.", margin, y + 5);
+  }
+
+  doc.save(`preventivo-${sanitizeFilename(preventivo.cliente)}.pdf`);
 }

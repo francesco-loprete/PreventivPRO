@@ -45,7 +45,7 @@ export function LoginForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       <div>
-        <label htmlFor="email" className="block mb-2 text-gray-400 text-sm">
+        <label htmlFor="email" className="block mb-2 text-muted text-sm">
           Email
         </label>
         <input
@@ -57,13 +57,13 @@ export function LoginForm() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="nome@azienda.it"
-          className="w-full bg-black border border-gray-700 rounded-xl p-4"
+          className="input-field"
           disabled={loading}
         />
       </div>
 
       <div>
-        <label htmlFor="password" className="block mb-2 text-gray-400 text-sm">
+        <label htmlFor="password" className="block mb-2 text-muted text-sm">
           Password
         </label>
         <input
@@ -75,7 +75,7 @@ export function LoginForm() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="••••••••"
-          className="w-full bg-black border border-gray-700 rounded-xl p-4"
+          className="input-field"
           disabled={loading}
         />
       </div>
@@ -89,14 +89,14 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={loading}
-        className="w-full bg-green-500 text-black py-4 rounded-xl font-bold hover:bg-green-400 disabled:opacity-50"
+        className="w-full btn-primary py-4"
       >
         {loading ? "Accesso..." : "Accedi"}
       </button>
 
-      <p className="text-center text-sm text-gray-400">
+      <p className="text-center text-sm text-muted">
         Non hai un account?{" "}
-        <Link href="/registrazione" className="text-green-500 hover:text-green-400 font-medium">
+        <Link href="/registrazione" className="text-accent hover:text-sky-400 font-medium">
           Registrati
         </Link>
       </p>

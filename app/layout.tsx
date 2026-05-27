@@ -69,7 +69,7 @@ export default function RootLayout({
       lang="it"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
     >
-      <body className="min-h-full flex flex-col bg-[#0f0f0f] text-white">
+      <body className="min-h-full flex flex-col bg-background text-foreground">
         {children}
         <PwaInstallPrompt />
       </body>

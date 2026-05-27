@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BrandTitle } from "@/components/brand-title";
 
 type AuthCardProps = {
   title: string;
@@ -9,22 +10,19 @@ type AuthCardProps = {
 
 export function AuthCard({ title, subtitle, children, footer }: AuthCardProps) {
   return (
-    <main className="min-h-screen bg-[#0f0f0f] text-white flex items-center justify-center p-6">
+    <main className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
       <div className="w-full max-w-md">
-        <Link
-          href="/"
-          className="text-3xl font-bold text-green-500 block mb-8 hover:text-green-400"
-        >
-          PreventivPRO
+        <Link href="/" className="block mb-8 hover:opacity-90 transition-opacity">
+          <BrandTitle />
         </Link>
 
-        <div className="bg-[#1a1a1a] border border-gray-800 rounded-2xl p-8">
+        <div className="card p-8">
           <h1 className="text-2xl font-bold mb-2">{title}</h1>
-          <p className="text-gray-400 text-sm mb-8">{subtitle}</p>
+          <p className="text-muted text-sm mb-8">{subtitle}</p>
           {children}
         </div>
 
-        {footer && <div className="mt-6 text-center text-sm text-gray-400">{footer}</div>}
+        {footer && <div className="mt-6 text-center text-sm text-muted">{footer}</div>}
       </div>
     </main>
   );
