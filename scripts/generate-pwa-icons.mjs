@@ -4,12 +4,19 @@ import sharp from "sharp";
 
 const root = path.join(process.cwd(), "public");
 const appDir = path.join(process.cwd(), "app");
-const svgPath = path.join(root, "icon-base.svg");
-const maskableSvgPath = path.join(root, "icon-maskable.svg");
 const iconsDir = path.join(root, "icons");
 const splashDir = path.join(root, "splash");
+const brandingDir = path.join(root, "branding");
 
-const ICON_SIZES = [72, 96, 128, 144, 152, 192, 384, 512];
+/** Custom uploaded masters — never overwritten by this script. */
+const CUSTOM_SOURCES = {
+  icon512: path.join(root, "icon-512x512.png"),
+  icon192: path.join(root, "icon-192x192.png"),
+  appleTouch: path.join(root, "apple-touch-icon.png"),
+  maskable512: path.join(root, "icon-maskable-512x512.png"),
+};
+
+const DERIVED_ICON_SIZES = [72, 96, 128, 144, 152, 384];
 
 const SPLASH_SCREENS = [
   {
@@ -68,54 +75,60 @@ const SPLASH_SCREENS = [
   },
 ];
 
-function splashSvg(width, height) {
-  const iconSize = Math.round(Math.min(width, height) * 0.22);
-  const titleSize = Math.round(Math.min(width, height) * 0.05);
-  const subtitleSize = Math.round(titleSize * 0.55);
-
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
-  <rect width="${width}" height="${height}" fill="#0F172A"/>
-  <rect x="${(width - iconSize) / 2}" y="${height * 0.36}" width="${iconSize}" height="${iconSize}" rx="${iconSize * 0.22}" fill="#38BDF8"/>
-  <text x="${width / 2}" y="${height * 0.36 + iconSize * 0.62}" text-anchor="middle" fill="#0F172A" font-family="Arial, Helvetica, sans-serif" font-size="${iconSize * 0.58}" font-weight="700">P</text>
-  <text x="${width / 2}" y="${height * 0.36 + iconSize + titleSize * 1.4}" text-anchor="middle" fill="#F8FAFC" font-family="Arial, Helvetica, sans-serif" font-size="${titleSize}" font-weight="700">Preventiv<tspan fill="#38BDF8">PRO</tspan></text>
-  <text x="${width / 2}" y="${height * 0.36 + iconSize + titleSize * 2.4}" text-anchor="middle" fill="#94A3B8" font-family="Arial, Helvetica, sans-serif" font-size="${subtitleSize}">Gestione preventivi</text>
-</svg>`;
+function assertCustomSources() {
+  for (const [name, filePath] of Object.entries(CUSTOM_SOURCES)) {
+    if (!fs.existsSync(filePath)) {
+      throw new Error(
+        `Missing custom asset ${name} at ${filePath}. Restore uploaded icons before running generate:icons.`
+      );
+    }
+  }
 }
 
-async function generateIcons(svg) {
-  fs.mkdirSync(iconsDir, { recursive: true });
+async function copyFile(from, to) {
+  fs.mkdirSync(path.dirname(to), { recursive: true });
+  fs.copyFileSync(from, to);
+  console.log("Copied", to);
+}
 
-  for (const size of ICON_SIZES) {
+async function syncIconSet() {
+  fs.mkdirSync(iconsDir, { recursive: true });
+  if (fs.existsSync(brandingDir) && !fs.statSync(brandingDir).isDirectory()) {
+    fs.unlinkSync(brandingDir);
+  }
+  fs.mkdirSync(brandingDir, { recursive: true });
+
+  await copyFile(CUSTOM_SOURCES.appleTouch, path.join(iconsDir, "apple-touch-icon.png"));
+  await copyFile(CUSTOM_SOURCES.icon192, path.join(iconsDir, "icon-192x192.png"));
+  await copyFile(CUSTOM_SOURCES.icon512, path.join(iconsDir, "icon-512x512.png"));
+  await copyFile(
+    CUSTOM_SOURCES.maskable512,
+    path.join(iconsDir, "icon-maskable-512x512.png")
+  );
+  await copyFile(
+    CUSTOM_SOURCES.icon512,
+    path.join(brandingDir, "logo-preventivpro.png")
+  );
+
+  const master = sharp(CUSTOM_SOURCES.icon512);
+
+  for (const size of DERIVED_ICON_SIZES) {
     const out = path.join(iconsDir, `icon-${size}x${size}.png`);
-    await sharp(svg).resize(size, size).png().toFile(out);
-    console.log("Created", out);
+    await master.clone().resize(size, size).png().toFile(out);
+    console.log("Created", out, "(from custom icon-512x512.png)");
   }
 
-  const appleTouch = path.join(iconsDir, "apple-touch-icon.png");
-  await sharp(svg).resize(180, 180).png().toFile(appleTouch);
-  await sharp(svg).resize(180, 180).png().toFile(path.join(root, "apple-touch-icon.png"));
-  console.log("Created apple-touch-icon.png");
-
-  const maskableSvg = fs.readFileSync(maskableSvgPath);
-  await sharp(maskableSvg)
-    .resize(512, 512)
+  const favicon32 = await sharp(CUSTOM_SOURCES.appleTouch)
+    .resize(32, 32)
     .png()
-    .toFile(path.join(iconsDir, "icon-maskable-512x512.png"));
-  await sharp(maskableSvg)
-    .resize(512, 512)
-    .png()
-    .toFile(path.join(root, "icon-maskable-512x512.png"));
-
-  await sharp(svg).resize(192, 192).png().toFile(path.join(root, "icon-192x192.png"));
-  await sharp(svg).resize(512, 512).png().toFile(path.join(root, "icon-512x512.png"));
-
-  const favicon32 = await sharp(svg).resize(32, 32).png().toBuffer();
+    .toBuffer();
   await sharp(favicon32).toFile(path.join(root, "favicon.ico"));
   await sharp(favicon32).toFile(path.join(root, "favicon.png"));
+
   fs.mkdirSync(appDir, { recursive: true });
-  await sharp(svg).resize(32, 32).png().toFile(path.join(appDir, "icon.png"));
-  await sharp(svg).resize(180, 180).png().toFile(path.join(appDir, "apple-icon.png"));
-  console.log("Created favicon and app/icon.png");
+  await sharp(favicon32).toFile(path.join(appDir, "icon.png"));
+  await copyFile(CUSTOM_SOURCES.appleTouch, path.join(appDir, "apple-icon.png"));
+  console.log("Synced favicon and app icons from custom apple-touch-icon.png");
 }
 
 async function generateSplashScreens() {
@@ -123,19 +136,31 @@ async function generateSplashScreens() {
 
   for (const { width, height } of SPLASH_SCREENS) {
     const out = path.join(splashDir, `splash-${width}x${height}.png`);
-    const svg = Buffer.from(splashSvg(width, height));
-    await sharp(svg).png().toFile(out);
-    console.log("Created", out);
+    const logoSize = Math.round(Math.min(width, height) * 0.28);
+    const logo = await sharp(CUSTOM_SOURCES.icon512)
+      .resize(logoSize, logoSize, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+      .png()
+      .toBuffer();
+
+    await sharp({
+      create: {
+        width,
+        height,
+        channels: 4,
+        background: "#0F172A",
+      },
+    })
+      .composite([{ input: logo, gravity: "center" }])
+      .png()
+      .toFile(out);
+
+    console.log("Created", out, "(from custom logo)");
   }
 }
 
 async function generate() {
-  if (!fs.existsSync(svgPath)) {
-    throw new Error(`Missing ${svgPath}`);
-  }
-
-  const svg = fs.readFileSync(svgPath);
-  await generateIcons(svg);
+  assertCustomSources();
+  await syncIconSet();
   await generateSplashScreens();
 }
 
