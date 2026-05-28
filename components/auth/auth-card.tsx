@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BrandTitle } from "@/components/brand-title";
+import { BrandLogo } from "@/components/brand-logo";
 
 type AuthCardProps = {
   title: string;
@@ -13,7 +13,7 @@ export function AuthCard({ title, subtitle, children, footer }: AuthCardProps) {
     <main className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
       <div className="w-full max-w-md">
         <Link href="/" className="block mb-8 hover:opacity-90 transition-opacity">
-          <BrandTitle />
+          <BrandLogo />
         </Link>
 
         <div className="card p-8">

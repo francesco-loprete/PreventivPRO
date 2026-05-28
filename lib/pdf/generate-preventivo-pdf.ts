@@ -1,11 +1,18 @@
 import { jsPDF } from "jspdf";
+import {
+  BRAND_DARK_RGB,
+  BRAND_GREEN_RGB,
+  BRAND_ICON_PNG,
+  BRAND_LOGO_PNG,
+  BRAND_LOGO_SVG,
+} from "@/lib/branding/constants";
 import type { Preventivo } from "@/lib/types/preventivo";
 import { getPreventivoTotale } from "@/lib/types/preventivo";
 import { getStoredLogoDataUrl, loadSettings } from "@/lib/settings/storage";
 import { downloadPdfBlob } from "@/lib/pdf/share-preventivo-pdf";
 
-const GREEN: [number, number, number] = [34, 197, 94];
-const DARK: [number, number, number] = [15, 15, 15];
+const GREEN: [number, number, number] = [...BRAND_GREEN_RGB];
+const DARK: [number, number, number] = [...BRAND_DARK_RGB];
 const GRAY: [number, number, number] = [107, 114, 128];
 const LIGHT: [number, number, number] = [245, 245, 245];
 
@@ -211,8 +218,9 @@ async function loadLogoDataUrl(): Promise<string | null> {
   if (storedLogo) return storedLogo;
 
   const paths = [
-    "/branding/logo-preventivpro.png",
-    "/logo-preventivpro.svg",
+    BRAND_LOGO_PNG,
+    BRAND_ICON_PNG,
+    BRAND_LOGO_SVG,
   ];
 
   for (const path of paths) {
@@ -277,6 +285,60 @@ function drawLogoFallback(doc: jsPDF, x: number, y: number) {
   doc.setFontSize(18);
   doc.setTextColor(...GREEN);
   doc.text("PreventivPRO", x + 18, y + 10.5);
+}
+
+function drawPdfCompanyFooter(
+  doc: jsPDF,
+  margin: number,
+  startY: number,
+  pageWidth: number
+): void {
+  let y = startY;
+
+  doc.setDrawColor(...GREEN);
+  doc.setLineWidth(0.4);
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 7;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(...GRAY);
+  doc.text("Documento generato da PreventivPRO", margin, y);
+  y += 6;
+
+  const settings = loadSettings();
+  const companyName = settings.companyName.trim();
+  const phone = settings.phone.trim();
+  const email = settings.email.trim();
+
+  if (companyName || phone || email) {
+    if (companyName) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(...GREEN);
+      doc.text(companyName, margin, y);
+      y += 6;
+    }
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(70, 70, 70);
+
+    if (phone) {
+      doc.text(`Telefono: ${phone}`, margin, y);
+      y += 5;
+    }
+
+    if (email) {
+      doc.text(`Email: ${email}`, margin, y);
+      y += 5;
+    }
+  }
+
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(8);
+  doc.setTextColor(...GRAY);
+  doc.text("Valido salvo diversa indicazione scritta.", margin, y + 1);
 }
 
 function sanitizeFilename(cliente: string): string {
@@ -443,23 +505,7 @@ export async function buildPreventivoPdfDocument(
 
   y += 40;
 
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(...GRAY);
-  doc.text("Documento generato automaticamente da PreventivPRO.", margin, y);
-
-  const settings = loadSettings();
-  const footerLines: string[] = [];
-  if (settings.companyName.trim()) footerLines.push(settings.companyName.trim());
-  if (settings.phone.trim()) footerLines.push(`Tel: ${settings.phone.trim()}`);
-  if (settings.email.trim()) footerLines.push(settings.email.trim());
-
-  if (footerLines.length > 0) {
-    doc.text(footerLines.join(" · "), margin, y + 5);
-    doc.text("Valido salvo diversa indicazione scritta.", margin, y + 10);
-  } else {
-    doc.text("Valido salvo diversa indicazione scritta.", margin, y + 5);
-  }
+  drawPdfCompanyFooter(doc, margin, y, pageWidth);
 
   return { doc, filename };
 }

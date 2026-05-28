@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BrandTitle } from "@/components/brand-title";
+import { BrandLogo } from "@/components/brand-logo";
 import { LogoutButton } from "@/components/auth/logout-button";
 
 type MainShellProps = {
@@ -47,7 +47,7 @@ export function MainShell({ children, userEmail, isLoggedIn }: MainShellProps) {
     <main className="min-h-screen bg-background text-foreground flex flex-col md:flex-row">
       <header className="md:hidden sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-border bg-card/95 backdrop-blur-md px-4 py-3 pt-safe">
         <Link href="/" className="hover:opacity-90 transition-opacity">
-          <BrandTitle size="sm" />
+          <BrandLogo variant="icon" />
         </Link>
         {!isLoggedIn && (
           <Link href="/login" className="text-sm text-accent font-medium">
@@ -58,7 +58,7 @@ export function MainShell({ children, userEmail, isLoggedIn }: MainShellProps) {
 
       <aside className="hidden md:flex w-64 bg-card border-r border-border p-6 shrink-0 flex-col shadow-xl shadow-black/20">
         <Link href="/" className="block mb-10 hover:opacity-90 transition-opacity">
-          <BrandTitle />
+          <BrandLogo />
         </Link>
 
         <nav className="flex flex-col gap-3 flex-1">
