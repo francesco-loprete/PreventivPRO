@@ -2,11 +2,19 @@
 
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
+import { VociEditor } from "@/components/preventivo/voci-editor";
 import { downloadPreventivoPdf, buildPreventivoPdfBlob } from "@/lib/pdf/generate-preventivo-pdf";
 import {
   buildWhatsAppMessage,
   sharePreventivoPdfViaWhatsApp,
 } from "@/lib/pdf/share-preventivo-pdf";
+import {
+  calcolaTotaleVoci,
+  validateVoci,
+  vociFromPreventivo,
+  vociToDescrizione,
+  type Voce,
+} from "@/lib/preventivi/voci";
 import { createClient } from "@/lib/supabase/client";
 import type { Preventivo } from "@/lib/types/preventivo";
 import { getPreventivoTotale, rlsErrorHint } from "@/lib/types/preventivo";
@@ -29,19 +37,21 @@ export function PreventiviTable({ preventivi: initialPreventivi }: PreventiviTab
   const router = useRouter();
   const [editing, setEditing] = useState<Preventivo | null>(null);
   const [cliente, setCliente] = useState("");
-  const [descrizione, setDescrizione] = useState("");
-  const [prezzo, setPrezzo] = useState("");
+  const [voci, setVoci] = useState<Voce[]>([]);
   const [loading, setLoading] = useState(false);
   const [pdfGeneratingId, setPdfGeneratingId] = useState<number | null>(null);
   const [whatsappSharingId, setWhatsappSharingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const totaleGenerale = calcolaTotaleVoci(voci);
+
   function openEdit(preventivo: Preventivo) {
     setError(null);
     setEditing(preventivo);
     setCliente(preventivo.cliente);
-    setDescrizione(preventivo.descrizione ?? "");
-    setPrezzo(String(getPreventivoTotale(preventivo)));
+    setVoci(
+      vociFromPreventivo(preventivo.descrizione, getPreventivoTotale(preventivo))
+    );
   }
 
   function closeEdit() {
@@ -54,15 +64,15 @@ export function PreventiviTable({ preventivi: initialPreventivi }: PreventiviTab
     if (!editing) return;
 
     const clienteTrimmed = cliente.trim();
-    const descrizioneTrimmed = descrizione.trim();
-    const prezzoNumber = Number(prezzo);
 
-    if (!clienteTrimmed || !descrizioneTrimmed) {
-      setError("Cliente e descrizione sono obbligatori.");
+    if (!clienteTrimmed) {
+      setError("Inserisci il nome del cliente.");
       return;
     }
-    if (!Number.isFinite(prezzoNumber) || prezzoNumber <= 0) {
-      setError("Inserisci un prezzo valido maggiore di zero.");
+
+    const validation = validateVoci(voci);
+    if (!validation.ok) {
+      setError(validation.message);
       return;
     }
 
@@ -84,8 +94,8 @@ export function PreventiviTable({ preventivi: initialPreventivi }: PreventiviTab
       .from("preventivi")
       .update({
         cliente: clienteTrimmed,
-        descrizione: descrizioneTrimmed,
-        prezzo: prezzoNumber,
+        descrizione: vociToDescrizione(validation.voci),
+        prezzo: validation.totale,
       })
       .eq("id", editing.id)
       .eq("user_id", user.id);
@@ -271,13 +281,13 @@ export function PreventiviTable({ preventivi: initialPreventivi }: PreventiviTab
         >
           <form
             onSubmit={handleUpdate}
-            className="w-full max-w-lg card p-8 shadow-2xl shadow-black/40"
+            className="w-full max-w-4xl max-h-[90vh] overflow-y-auto card p-6 sm:p-8 shadow-2xl shadow-black/40"
           >
             <h2 id="edit-title" className="text-2xl font-bold mb-6">
               Modifica <span className="text-accent">preventivo</span>
             </h2>
 
-            <div className="mb-4">
+            <div className="mb-6">
               <label htmlFor="edit-cliente" className="block mb-2 text-muted text-sm">
                 Cliente
               </label>
@@ -292,35 +302,21 @@ export function PreventiviTable({ preventivi: initialPreventivi }: PreventiviTab
               />
             </div>
 
-            <div className="mb-4">
-              <label htmlFor="edit-descrizione" className="block mb-2 text-muted text-sm">
-                Descrizione
-              </label>
-              <textarea
-                id="edit-descrizione"
-                required
-                value={descrizione}
-                onChange={(e) => setDescrizione(e.target.value)}
-                className="input-field h-28 resize-none"
+            <div className="mb-6">
+              <label className="block mb-2 text-muted text-sm">Voci Preventivo</label>
+              <VociEditor
+                voci={voci}
+                onChange={setVoci}
                 disabled={loading}
+                idPrefix="edit"
               />
             </div>
 
-            <div className="mb-6">
-              <label htmlFor="edit-prezzo" className="block mb-2 text-muted text-sm">
-                Prezzo €
-              </label>
-              <input
-                id="edit-prezzo"
-                type="number"
-                required
-                min={0.01}
-                step={0.01}
-                value={prezzo}
-                onChange={(e) => setPrezzo(e.target.value)}
-                className="input-field"
-                disabled={loading}
-              />
+            <div className="mb-6 text-right">
+              <p className="text-muted text-sm">Totale Generale</p>
+              <p className="text-2xl sm:text-3xl font-bold text-accent">
+                € {totaleGenerale}
+              </p>
             </div>
 
             {error && (
@@ -329,7 +325,7 @@ export function PreventiviTable({ preventivi: initialPreventivi }: PreventiviTab
               </p>
             )}
 
-            <div className="flex gap-3 justify-end">
+            <div className="flex flex-col-reverse sm:flex-row gap-3 sm:justify-end">
               <button
                 type="button"
                 onClick={closeEdit}

@@ -10,6 +10,7 @@ import type { Preventivo } from "@/lib/types/preventivo";
 import { getPreventivoTotale } from "@/lib/types/preventivo";
 import { getStoredLogoDataUrl, loadSettings } from "@/lib/settings/storage";
 import { downloadPdfBlob } from "@/lib/pdf/share-preventivo-pdf";
+import { parseVociFromDescrizione as parseVoci } from "@/lib/preventivi/voci";
 
 const GREEN: [number, number, number] = [...BRAND_GREEN_RGB];
 const DARK: [number, number, number] = [...BRAND_DARK_RGB];
@@ -148,69 +149,6 @@ async function drawHeaderLogo(
     undefined,
     "NONE"
   );
-}
-
-type VocePdf = {
-  descrizione: string;
-  quantita: number;
-  unita: string;
-  prezzo: number;
-  totale: number;
-};
-
-function parseVociFromDescrizione(descrizione: string | null | undefined): VocePdf[] {
-  if (!descrizione?.trim()) return [];
-
-  const voci: VocePdf[] = [];
-
-  for (const line of descrizione.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-
-    const withUnit =
-      /^(.+?) \((\d+(?:[.,]\d+)?) (\S+) × €(\d+(?:[.,]\d+)?) = €(\d+(?:[.,]\d+)?)\)$/;
-    const withoutUnit =
-      /^(.+?) \((\d+(?:[.,]\d+)?) × €(\d+(?:[.,]\d+)?)(?: = €(\d+(?:[.,]\d+)?))?\)$/;
-
-    const matchUnit = trimmed.match(withUnit);
-    if (matchUnit) {
-      voci.push({
-        descrizione: matchUnit[1].trim(),
-        quantita: Number(matchUnit[2].replace(",", ".")),
-        unita: matchUnit[3],
-        prezzo: Number(matchUnit[4].replace(",", ".")),
-        totale: Number(matchUnit[5].replace(",", ".")),
-      });
-      continue;
-    }
-
-    const matchSimple = trimmed.match(withoutUnit);
-    if (matchSimple) {
-      const quantita = Number(matchSimple[2].replace(",", "."));
-      const prezzo = Number(matchSimple[3].replace(",", "."));
-      const totale = matchSimple[4]
-        ? Number(matchSimple[4].replace(",", "."))
-        : quantita * prezzo;
-      voci.push({
-        descrizione: matchSimple[1].trim(),
-        quantita,
-        unita: "pz",
-        prezzo,
-        totale,
-      });
-      continue;
-    }
-
-    voci.push({
-      descrizione: trimmed,
-      quantita: 1,
-      unita: "—",
-      prezzo: 0,
-      totale: 0,
-    });
-  }
-
-  return voci;
 }
 
 async function loadLogoDataUrl(): Promise<string | null> {
@@ -366,7 +304,7 @@ export async function buildPreventivoPdfDocument(
   const margin = 20;
   const contentWidth = pageWidth - margin * 2;
   const totaleGenerale = getPreventivoTotale(preventivo);
-  const voci = parseVociFromDescrizione(preventivo.descrizione);
+  const voci = parseVoci(preventivo.descrizione);
 
   doc.setFillColor(...DARK);
   doc.rect(0, 0, pageWidth, HEADER_HEIGHT_MM, "F");
@@ -455,7 +393,6 @@ export async function buildPreventivoPdfDocument(
             quantita: 1,
             unita: "—",
             prezzo: totaleGenerale,
-            totale: totaleGenerale,
           },
         ];
 
@@ -465,6 +402,7 @@ export async function buildPreventivoPdfDocument(
       y = 20;
     }
 
+    const rigaTotale = voce.quantita * voce.prezzo;
     const descLines = doc.splitTextToSize(voce.descrizione, 72);
     const rowHeight = Math.max(descLines.length * 5, 7);
 
@@ -472,7 +410,7 @@ export async function buildPreventivoPdfDocument(
     doc.text(String(voce.quantita), colQty, y + 4);
     doc.text(voce.unita, colUnit, y + 4);
     doc.text(euroFormatter.format(voce.prezzo), colPrice, y + 4);
-    doc.text(euroFormatter.format(voce.totale), colTotal, y + 4);
+    doc.text(euroFormatter.format(rigaTotale), colTotal, y + 4);
 
     doc.setDrawColor(230, 230, 230);
     doc.line(margin, y + rowHeight + 2, pageWidth - margin, y + rowHeight + 2);
