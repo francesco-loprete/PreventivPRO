@@ -2,7 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
-import { generatePreventivoPdf } from "@/lib/pdf/generate-preventivo-pdf";
+import { downloadPreventivoPdf, buildPreventivoPdfBlob } from "@/lib/pdf/generate-preventivo-pdf";
+import {
+  buildWhatsAppMessage,
+  sharePreventivoPdfViaWhatsApp,
+} from "@/lib/pdf/share-preventivo-pdf";
 import { createClient } from "@/lib/supabase/client";
 import type { Preventivo } from "@/lib/types/preventivo";
 import { getPreventivoTotale, rlsErrorHint } from "@/lib/types/preventivo";
@@ -29,6 +33,7 @@ export function PreventiviTable({ preventivi: initialPreventivi }: PreventiviTab
   const [prezzo, setPrezzo] = useState("");
   const [loading, setLoading] = useState(false);
   const [pdfGeneratingId, setPdfGeneratingId] = useState<number | null>(null);
+  const [whatsappSharingId, setWhatsappSharingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   function openEdit(preventivo: Preventivo) {
@@ -137,7 +142,7 @@ export function PreventiviTable({ preventivi: initialPreventivi }: PreventiviTab
     setPdfGeneratingId(preventivo.id);
 
     try {
-      await generatePreventivoPdf(preventivo);
+      await downloadPreventivoPdf(preventivo);
     } catch {
       setError("Errore durante la generazione del PDF.");
     } finally {
@@ -145,19 +150,28 @@ export function PreventiviTable({ preventivi: initialPreventivi }: PreventiviTab
     }
   }
 
-  function handleWhatsApp(preventivo: Preventivo) {
-    const totale = getPreventivoTotale(preventivo);
-    const totaleFormatted = totale.toLocaleString("it-IT", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-    const message = `Ciao, ti invio il preventivo di ${preventivo.cliente} per un totale di €${totaleFormatted}`;
-    window.open(
-      `https://wa.me/?text=${encodeURIComponent(message)}`,
-      "_blank",
-      "noopener,noreferrer"
-    );
+  async function handleWhatsApp(preventivo: Preventivo) {
+    setError(null);
+    setWhatsappSharingId(preventivo.id);
+
+    try {
+      const { blob, filename } = await buildPreventivoPdfBlob(preventivo);
+      const message = buildWhatsAppMessage(preventivo);
+      await sharePreventivoPdfViaWhatsApp(blob, filename, message);
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") {
+        return;
+      }
+      setError("Errore durante la condivisione su WhatsApp.");
+    } finally {
+      setWhatsappSharingId(null);
+    }
   }
+
+  const isRowBusy = (preventivoId: number) =>
+    loading ||
+    pdfGeneratingId === preventivoId ||
+    whatsappSharingId === preventivoId;
 
   return (
     <>
@@ -203,28 +217,30 @@ export function PreventiviTable({ preventivi: initialPreventivi }: PreventiviTab
                       ? dateFormatter.format(new Date(preventivo.created_at))
                       : "—"}
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center justify-end gap-2 flex-wrap">
+                  <td className="px-3 sm:px-6 py-4">
+                    <div className="flex items-center justify-end gap-1.5 sm:gap-2 flex-wrap">
                       <button
                         type="button"
                         onClick={() => handlePdf(preventivo)}
-                        disabled={loading || pdfGeneratingId === preventivo.id}
-                        className="btn-ghost hover:border-accent hover:text-accent"
+                        disabled={isRowBusy(preventivo.id)}
+                        className="btn-ghost hover:border-accent hover:text-accent min-w-[52px]"
+                        aria-label={`Scarica PDF preventivo ${preventivo.cliente}`}
                       >
                         {pdfGeneratingId === preventivo.id ? "PDF..." : "PDF"}
                       </button>
                       <button
                         type="button"
                         onClick={() => handleWhatsApp(preventivo)}
-                        disabled={loading}
-                        className="btn-ghost hover:border-[#25D366] hover:text-[#25D366]"
+                        disabled={isRowBusy(preventivo.id)}
+                        className="btn-ghost hover:border-[#25D366] hover:text-[#25D366] min-w-[52px]"
+                        aria-label={`Condividi preventivo ${preventivo.cliente} su WhatsApp`}
                       >
-                        WhatsApp
+                        {whatsappSharingId === preventivo.id ? "..." : "WhatsApp"}
                       </button>
                       <button
                         type="button"
                         onClick={() => openEdit(preventivo)}
-                        disabled={loading}
+                        disabled={loading || pdfGeneratingId !== null || whatsappSharingId !== null}
                         className="btn-ghost hover:border-accent hover:text-accent"
                       >
                         Modifica
@@ -232,7 +248,7 @@ export function PreventiviTable({ preventivi: initialPreventivi }: PreventiviTab
                       <button
                         type="button"
                         onClick={() => handleDelete(preventivo)}
-                        disabled={loading}
+                        disabled={loading || pdfGeneratingId !== null || whatsappSharingId !== null}
                         className="px-3 py-1.5 text-sm rounded-lg border border-red-900/60 text-red-400 hover:bg-red-950/80 hover:border-red-700 transition-colors disabled:opacity-50"
                       >
                         Elimina

@@ -2,6 +2,7 @@ import { jsPDF } from "jspdf";
 import type { Preventivo } from "@/lib/types/preventivo";
 import { getPreventivoTotale } from "@/lib/types/preventivo";
 import { getStoredLogoDataUrl, loadSettings } from "@/lib/settings/storage";
+import { downloadPdfBlob } from "@/lib/pdf/share-preventivo-pdf";
 
 const GREEN: [number, number, number] = [34, 197, 94];
 const DARK: [number, number, number] = [15, 15, 15];
@@ -288,7 +289,15 @@ function sanitizeFilename(cliente: string): string {
   );
 }
 
-export async function generatePreventivoPdf(preventivo: Preventivo) {
+export type PreventivoPdfOutput = {
+  doc: jsPDF;
+  filename: string;
+};
+
+export async function buildPreventivoPdfDocument(
+  preventivo: Preventivo
+): Promise<PreventivoPdfOutput> {
+  const filename = `preventivo-${sanitizeFilename(preventivo.cliente)}.pdf`;
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -452,5 +461,26 @@ export async function generatePreventivoPdf(preventivo: Preventivo) {
     doc.text("Valido salvo diversa indicazione scritta.", margin, y + 5);
   }
 
-  doc.save(`preventivo-${sanitizeFilename(preventivo.cliente)}.pdf`);
+  return { doc, filename };
+}
+
+export async function buildPreventivoPdfBlob(
+  preventivo: Preventivo
+): Promise<{ blob: Blob; filename: string }> {
+  const { doc, filename } = await buildPreventivoPdfDocument(preventivo);
+  return { blob: doc.output("blob"), filename };
+}
+
+export async function downloadPreventivoPdf(preventivo: Preventivo): Promise<void> {
+  const { doc, filename } = await buildPreventivoPdfDocument(preventivo);
+
+  try {
+    downloadPdfBlob(doc.output("blob"), filename);
+  } catch {
+    doc.save(filename);
+  }
+}
+
+export async function generatePreventivoPdf(preventivo: Preventivo): Promise<void> {
+  return downloadPreventivoPdf(preventivo);
 }
