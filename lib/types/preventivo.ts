@@ -1,6 +1,7 @@
 export type Preventivo = {
   id: number;
   cliente: string;
+  cliente_id?: number | null;
   descrizione?: string | null;
   prezzo?: number | null;
   totale?: number | null;
@@ -10,6 +11,7 @@ export type Preventivo = {
 
 export type PreventivoInsert = {
   cliente: string;
+  cliente_id?: number | null;
   descrizione: string;
   prezzo: number;
   user_id: string;
@@ -17,7 +19,7 @@ export type PreventivoInsert = {
 
 export type PreventivoUpdate = Pick<
   Preventivo,
-  "cliente" | "descrizione" | "prezzo"
+  "cliente" | "cliente_id" | "descrizione" | "prezzo"
 >;
 
 export function getPreventivoTotale(preventivo: Preventivo): number {

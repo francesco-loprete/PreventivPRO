@@ -2,7 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
+import {
+  ClientePicker,
+  createClientePickerState,
+  type ClientePickerState,
+} from "@/components/clienti/cliente-picker";
 import { VociEditor } from "@/components/preventivo/voci-editor";
+import { resolveClienteForPreventivo } from "@/lib/clienti/resolve-cliente";
 import { downloadPreventivoPdf, buildPreventivoPdfBlob } from "@/lib/pdf/generate-preventivo-pdf";
 import {
   buildWhatsAppMessage,
@@ -16,6 +22,7 @@ import {
   type Voce,
 } from "@/lib/preventivi/voci";
 import { createClient } from "@/lib/supabase/client";
+import type { Cliente } from "@/lib/types/cliente";
 import type { Preventivo } from "@/lib/types/preventivo";
 import { getPreventivoTotale, rlsErrorHint } from "@/lib/types/preventivo";
 
@@ -31,12 +38,18 @@ const dateFormatter = new Intl.DateTimeFormat("it-IT", {
 
 type PreventiviTableProps = {
   preventivi: Preventivo[];
+  clienti: Cliente[];
 };
 
-export function PreventiviTable({ preventivi: initialPreventivi }: PreventiviTableProps) {
+export function PreventiviTable({
+  preventivi: initialPreventivi,
+  clienti,
+}: PreventiviTableProps) {
   const router = useRouter();
   const [editing, setEditing] = useState<Preventivo | null>(null);
-  const [cliente, setCliente] = useState("");
+  const [clientePicker, setClientePicker] = useState<ClientePickerState>(() =>
+    createClientePickerState(clienti)
+  );
   const [voci, setVoci] = useState<Voce[]>([]);
   const [loading, setLoading] = useState(false);
   const [pdfGeneratingId, setPdfGeneratingId] = useState<number | null>(null);
@@ -48,7 +61,12 @@ export function PreventiviTable({ preventivi: initialPreventivi }: PreventiviTab
   function openEdit(preventivo: Preventivo) {
     setError(null);
     setEditing(preventivo);
-    setCliente(preventivo.cliente);
+    setClientePicker(
+      createClientePickerState(clienti, {
+        clienteId: preventivo.cliente_id,
+        nomeFallback: preventivo.cliente,
+      })
+    );
     setVoci(
       vociFromPreventivo(preventivo.descrizione, getPreventivoTotale(preventivo))
     );
@@ -62,13 +80,6 @@ export function PreventiviTable({ preventivi: initialPreventivi }: PreventiviTab
   async function handleUpdate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!editing) return;
-
-    const clienteTrimmed = cliente.trim();
-
-    if (!clienteTrimmed) {
-      setError("Inserisci il nome del cliente.");
-      return;
-    }
 
     const validation = validateVoci(voci);
     if (!validation.ok) {
@@ -90,10 +101,23 @@ export function PreventiviTable({ preventivi: initialPreventivi }: PreventiviTab
       return;
     }
 
+    const resolved = await resolveClienteForPreventivo(
+      supabase,
+      user.id,
+      clientePicker
+    );
+
+    if (!resolved.ok) {
+      setLoading(false);
+      setError(resolved.message);
+      return;
+    }
+
     const { error: updateError } = await supabase
       .from("preventivi")
       .update({
-        cliente: clienteTrimmed,
+        cliente: resolved.clienteNome,
+        cliente_id: resolved.clienteId,
         descrizione: vociToDescrizione(validation.voci),
         prezzo: validation.totale,
       })
@@ -288,17 +312,13 @@ export function PreventiviTable({ preventivi: initialPreventivi }: PreventiviTab
             </h2>
 
             <div className="mb-6">
-              <label htmlFor="edit-cliente" className="block mb-2 text-muted text-sm">
-                Cliente
-              </label>
-              <input
-                id="edit-cliente"
-                type="text"
-                required
-                value={cliente}
-                onChange={(e) => setCliente(e.target.value)}
-                className="input-field"
+              <label className="block mb-2 text-muted text-sm">Cliente</label>
+              <ClientePicker
+                clienti={clienti}
+                value={clientePicker}
+                onChange={setClientePicker}
                 disabled={loading}
+                idPrefix="edit"
               />
             </div>
 

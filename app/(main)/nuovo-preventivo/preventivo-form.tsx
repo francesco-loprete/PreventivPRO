@@ -2,7 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
+import {
+  ClientePicker,
+  createClientePickerState,
+  type ClientePickerState,
+} from "@/components/clienti/cliente-picker";
 import { VociEditor } from "@/components/preventivo/voci-editor";
+import { resolveClienteForPreventivo } from "@/lib/clienti/resolve-cliente";
 import {
   calcolaTotaleVoci,
   createEmptyVoce,
@@ -11,12 +17,19 @@ import {
   type Voce,
 } from "@/lib/preventivi/voci";
 import { createClient } from "@/lib/supabase/client";
+import type { Cliente } from "@/lib/types/cliente";
 import type { PreventivoInsert } from "@/lib/types/preventivo";
 import { rlsErrorHint } from "@/lib/types/preventivo";
 
-export function PreventivoForm() {
+type PreventivoFormProps = {
+  clienti: Cliente[];
+};
+
+export function PreventivoForm({ clienti }: PreventivoFormProps) {
   const router = useRouter();
-  const [cliente, setCliente] = useState("");
+  const [clientePicker, setClientePicker] = useState<ClientePickerState>(() =>
+    createClientePickerState(clienti)
+  );
   const [voci, setVoci] = useState<Voce[]>([createEmptyVoce()]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,13 +41,6 @@ export function PreventivoForm() {
     event.preventDefault();
     setError(null);
     setSuccess(false);
-
-    const clienteTrimmed = cliente.trim();
-
-    if (!clienteTrimmed) {
-      setError("Inserisci il nome del cliente.");
-      return;
-    }
 
     const validation = validateVoci(voci);
     if (!validation.ok) {
@@ -56,8 +62,21 @@ export function PreventivoForm() {
         return;
       }
 
+      const resolved = await resolveClienteForPreventivo(
+        supabase,
+        user.id,
+        clientePicker
+      );
+
+      if (!resolved.ok) {
+        setError(resolved.message);
+        setLoading(false);
+        return;
+      }
+
       const payload: PreventivoInsert = {
-        cliente: clienteTrimmed,
+        cliente: resolved.clienteNome,
+        cliente_id: resolved.clienteId,
         descrizione: vociToDescrizione(validation.voci),
         prezzo: validation.totale,
         user_id: user.id,
@@ -71,7 +90,7 @@ export function PreventivoForm() {
       }
 
       setSuccess(true);
-      setCliente("");
+      setClientePicker(createClientePickerState(clienti));
       setVoci([createEmptyVoce()]);
       router.refresh();
     } catch (err) {
@@ -88,19 +107,13 @@ export function PreventivoForm() {
   return (
     <form onSubmit={handleSubmit} className="card p-8 max-w-4xl">
       <div className="mb-6">
-        <label htmlFor="cliente" className="block mb-2 text-muted text-sm">
-          Nome Cliente
-        </label>
-        <input
-          id="cliente"
-          name="cliente"
-          type="text"
-          required
-          value={cliente}
-          onChange={(e) => setCliente(e.target.value)}
-          placeholder="Mario Rossi"
-          className="input-field"
+        <label className="block mb-2 text-muted text-sm">Cliente</label>
+        <ClientePicker
+          clienti={clienti}
+          value={clientePicker}
+          onChange={setClientePicker}
           disabled={loading}
+          idPrefix="nuovo"
         />
       </div>
 

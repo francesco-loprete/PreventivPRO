@@ -24,6 +24,11 @@ const NAV_ITEMS = [
     match: (path: string) => path.startsWith("/preventivi"),
   },
   {
+    href: "/clienti",
+    label: "Clienti",
+    match: (path: string) => path.startsWith("/clienti"),
+  },
+  {
     href: "/impostazioni",
     label: "Setup",
     match: (path: string) => path.startsWith("/impostazioni"),
@@ -80,10 +85,15 @@ export function MainShell({ children, userEmail, isLoggedIn }: MainShellProps) {
           >
             Preventivi
           </Link>
-          <span className="text-muted/40">Clienti</span>
+          <Link
+            href="/clienti"
+            className={navClassName(NAV_ITEMS[3].match(pathname), "sidebar")}
+          >
+            Clienti
+          </Link>
           <Link
             href="/impostazioni"
-            className={navClassName(NAV_ITEMS[3].match(pathname), "sidebar")}
+            className={navClassName(NAV_ITEMS[4].match(pathname), "sidebar")}
           >
             Impostazioni
           </Link>
@@ -123,14 +133,14 @@ export function MainShell({ children, userEmail, isLoggedIn }: MainShellProps) {
           className="md:hidden fixed bottom-0 inset-x-0 z-30 border-t border-border bg-card/95 backdrop-blur-md pb-safe"
           aria-label="Navigazione principale"
         >
-          <ul className="grid grid-cols-4 gap-1 px-2 py-2">
+          <ul className="grid grid-cols-5 gap-1 px-1 py-2">
             {NAV_ITEMS.map(({ href, label, match }) => {
               const active = match(pathname);
               return (
                 <li key={href}>
                   <Link
                     href={href}
-                    className={`flex flex-col items-center justify-center gap-1 rounded-xl py-2 text-xs ${navClassName(active, "bottom")}`}
+                    className={`flex flex-col items-center justify-center gap-1 rounded-xl py-2 text-[11px] ${navClassName(active, "bottom")}`}
                     aria-current={active ? "page" : undefined}
                   >
                     <span className="text-base leading-none" aria-hidden>
@@ -140,7 +150,9 @@ export function MainShell({ children, userEmail, isLoggedIn }: MainShellProps) {
                           ? "+"
                           : label === "Lista"
                             ? "☰"
-                            : "⚙"}
+                            : label === "Clienti"
+                              ? "👤"
+                              : "⚙"}
                     </span>
                     {label}
                   </Link>

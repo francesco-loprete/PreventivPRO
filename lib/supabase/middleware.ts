@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseAnonKey, getSupabaseUrl, isSupabaseConfigured } from "@/lib/supabase/env";
 
-const PROTECTED_PREFIXES = ["/preventivi", "/nuovo-preventivo"];
+const PROTECTED_PREFIXES = ["/preventivi", "/nuovo-preventivo", "/clienti"];
 const AUTH_ROUTES = ["/login", "/registrazione"];
 
 function isProtectedPath(pathname: string) {
