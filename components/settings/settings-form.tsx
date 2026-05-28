@@ -1,5 +1,6 @@
 "use client";
 
+import { BRAND_COMPANY } from "@/lib/branding/constants";
 import { FormEvent, useEffect, useState } from "react";
 import { LogoUpload } from "@/components/settings/logo-upload";
 import {
@@ -77,7 +78,7 @@ export function SettingsForm() {
             type="text"
             value={settings.companyName}
             onChange={(e) => updateField("companyName", e.target.value)}
-            placeholder="PreventivPRO Srl"
+            placeholder={BRAND_COMPANY.companyName}
             className="input-field"
             disabled={saving}
           />
@@ -92,7 +93,7 @@ export function SettingsForm() {
             type="tel"
             value={settings.phone}
             onChange={(e) => updateField("phone", e.target.value)}
-            placeholder="+39 333 1234567"
+            placeholder={BRAND_COMPANY.phone || "+39 333 1234567"}
             className="input-field"
             disabled={saving}
           />
@@ -107,7 +108,7 @@ export function SettingsForm() {
             type="email"
             value={settings.email}
             onChange={(e) => updateField("email", e.target.value)}
-            placeholder="info@azienda.it"
+            placeholder={BRAND_COMPANY.email || "info@azienda.it"}
             className="input-field"
             disabled={saving}
           />

@@ -1,3 +1,5 @@
+import { BRAND_COMPANY } from "@/lib/branding/constants";
+
 export type AppSettings = {
   companyName: string;
   phone: string;
@@ -7,10 +9,11 @@ export type AppSettings = {
 
 export const SETTINGS_STORAGE_KEY = "preventivpro-settings";
 
+/** Valori iniziali form Impostazioni (da branding centralizzato). */
 export const DEFAULT_SETTINGS: AppSettings = {
-  companyName: "",
-  phone: "",
-  email: "",
+  companyName: BRAND_COMPANY.companyName,
+  phone: BRAND_COMPANY.phone,
+  email: BRAND_COMPANY.email,
   logoDataUrl: null,
 };
 
@@ -25,9 +28,9 @@ export function loadSettings(): AppSettings {
 
     const parsed = JSON.parse(raw) as Partial<AppSettings>;
     return {
-      companyName: parsed.companyName ?? "",
-      phone: parsed.phone ?? "",
-      email: parsed.email ?? "",
+      companyName: parsed.companyName ?? DEFAULT_SETTINGS.companyName,
+      phone: parsed.phone ?? DEFAULT_SETTINGS.phone,
+      email: parsed.email ?? DEFAULT_SETTINGS.email,
       logoDataUrl: parsed.logoDataUrl ?? null,
     };
   } catch {
@@ -38,8 +41,4 @@ export function loadSettings(): AppSettings {
 export function saveSettings(settings: AppSettings): void {
   if (typeof window === "undefined") return;
   localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
-}
-
-export function getStoredLogoDataUrl(): string | null {
-  return loadSettings().logoDataUrl;
 }

@@ -2,13 +2,16 @@ import { jsPDF } from "jspdf";
 import {
   BRAND_DARK_RGB,
   BRAND_GREEN_RGB,
-  BRAND_ICON_PNG,
-  BRAND_LOGO_PNG,
-  BRAND_LOGO_SVG,
+  BRAND_NAME,
+  BRAND_PDF,
 } from "@/lib/branding/constants";
+import {
+  getCompanyContact,
+  getPdfLogoPaths,
+  getStoredLogoDataUrl,
+} from "@/lib/branding/settings";
 import type { Preventivo } from "@/lib/types/preventivo";
 import { getPreventivoTotale } from "@/lib/types/preventivo";
-import { getStoredLogoDataUrl, loadSettings } from "@/lib/settings/storage";
 import { downloadPdfBlob } from "@/lib/pdf/share-preventivo-pdf";
 import { parseVociFromDescrizione as parseVoci } from "@/lib/preventivi/voci";
 
@@ -155,11 +158,7 @@ async function loadLogoDataUrl(): Promise<string | null> {
   const storedLogo = getStoredLogoDataUrl();
   if (storedLogo) return storedLogo;
 
-  const paths = [
-    BRAND_LOGO_PNG,
-    BRAND_ICON_PNG,
-    BRAND_LOGO_SVG,
-  ];
+  const paths = getPdfLogoPaths();
 
   for (const path of paths) {
     try {
@@ -222,7 +221,7 @@ function drawLogoFallback(doc: jsPDF, x: number, y: number) {
   doc.text("P", x + 4.2, y + 10);
   doc.setFontSize(18);
   doc.setTextColor(...GREEN);
-  doc.text("PreventivPRO", x + 18, y + 10.5);
+  doc.text(BRAND_NAME, x + 18, y + 10.5);
 }
 
 function drawPdfCompanyFooter(
@@ -241,42 +240,37 @@ function drawPdfCompanyFooter(
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(...GRAY);
-  doc.text("Documento generato da PreventivPRO", margin, y);
+  doc.text(BRAND_PDF.generatedByLine, margin, y);
   y += 6;
 
-  const settings = loadSettings();
-  const companyName = settings.companyName.trim();
-  const phone = settings.phone.trim();
-  const email = settings.email.trim();
+  const { companyName, phone, email } = getCompanyContact();
 
-  if (companyName || phone || email) {
-    if (companyName) {
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
-      doc.setTextColor(...GREEN);
-      doc.text(companyName, margin, y);
-      y += 6;
-    }
+  if (companyName) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(...GREEN);
+    doc.text(companyName, margin, y);
+    y += 6;
+  }
 
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.setTextColor(70, 70, 70);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(70, 70, 70);
 
-    if (phone) {
-      doc.text(`Telefono: ${phone}`, margin, y);
-      y += 5;
-    }
+  if (phone) {
+    doc.text(`Telefono: ${phone}`, margin, y);
+    y += 5;
+  }
 
-    if (email) {
-      doc.text(`Email: ${email}`, margin, y);
-      y += 5;
-    }
+  if (email) {
+    doc.text(`Email: ${email}`, margin, y);
+    y += 5;
   }
 
   doc.setFont("helvetica", "italic");
   doc.setFontSize(8);
   doc.setTextColor(...GRAY);
-  doc.text("Valido salvo diversa indicazione scritta.", margin, y + 1);
+  doc.text(BRAND_PDF.validityLine, margin, y + 1);
 }
 
 function sanitizeFilename(cliente: string): string {

@@ -1,3 +1,4 @@
+import { BRAND_GREEN, BRAND_NAME } from "@/lib/branding/constants";
 import Link from "next/link";
 import { BrandLogo } from "@/components/brand-logo";
 
@@ -9,10 +10,10 @@ export default function OfflinePage() {
           <BrandLogo />
         </div>
         <h1 className="text-3xl font-bold mb-4">
-          Sei <span className="text-[#22C55E]">offline</span>
+          Sei <span style={{ color: BRAND_GREEN }}>offline</span>
         </h1>
         <p className="text-muted mb-8">
-          PreventivPRO non ha connessione. Le pagine già visitate potrebbero essere
+          {BRAND_NAME} non ha connessione. Le pagine già visitate potrebbero essere
           disponibili; per dati aggiornati torna online.
         </p>
         <Link href="/" className="btn-primary inline-block">
