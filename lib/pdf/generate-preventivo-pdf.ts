@@ -10,10 +10,11 @@ import {
   getPdfLogoPaths,
   getStoredLogoDataUrl,
 } from "@/lib/branding/settings";
+import { calcolaRiepilogoIva } from "@/lib/preventivi/iva";
+import { parseVociFromDescrizione as parseVoci } from "@/lib/preventivi/voci";
+import { downloadPdfBlob } from "@/lib/pdf/share-preventivo-pdf";
 import type { Preventivo } from "@/lib/types/preventivo";
 import { getPreventivoTotale } from "@/lib/types/preventivo";
-import { downloadPdfBlob } from "@/lib/pdf/share-preventivo-pdf";
-import { parseVociFromDescrizione as parseVoci } from "@/lib/preventivi/voci";
 
 const GREEN: [number, number, number] = [...BRAND_GREEN_RGB];
 const DARK: [number, number, number] = [...BRAND_DARK_RGB];
@@ -411,11 +412,49 @@ export async function buildPreventivoPdfDocument(
     y += rowHeight + 4;
   }
 
+  const riepilogo = calcolaRiepilogoIva(totaleGenerale, preventivo.aliquota_iva);
+
   y += 6;
+  if (y > pageHeight - 72) {
+    doc.addPage();
+    y = 20;
+  }
+
   doc.setDrawColor(...GREEN);
   doc.setLineWidth(0.8);
   doc.line(margin, y, pageWidth - margin, y);
-  y += 12;
+  y += 10;
+
+  const summaryLabelX = margin + contentWidth * 0.42;
+  const summaryValueX = pageWidth - margin;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(55, 55, 55);
+
+  const riepilogoLines = [
+    { label: "Imponibile:", value: euroFormatter.format(riepilogo.imponibile) },
+    {
+      label: `IVA ${riepilogo.aliquota}%:`,
+      value: euroFormatter.format(riepilogo.iva),
+    },
+    {
+      label: "Totale IVA inclusa:",
+      value: euroFormatter.format(riepilogo.totaleIvaInclusa),
+    },
+  ];
+
+  for (const line of riepilogoLines) {
+    doc.text(line.label, summaryLabelX, y);
+    doc.text(line.value, summaryValueX, y, { align: "right" });
+    y += 6;
+  }
+
+  y += 6;
+  if (y > pageHeight - 48) {
+    doc.addPage();
+    y = 20;
+  }
 
   doc.setFillColor(...DARK);
   doc.roundedRect(margin, y, contentWidth, 28, 3, 3, "F");
@@ -423,13 +462,13 @@ export async function buildPreventivoPdfDocument(
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
   doc.setTextColor(180, 180, 180);
-  doc.text("TOTALE GENERALE", margin + 10, y + 11);
+  doc.text("TOTALE IVA INCLUSA", margin + 10, y + 11);
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(20);
   doc.setTextColor(...GREEN);
   doc.text(
-    euroFormatter.format(totaleGenerale),
+    euroFormatter.format(riepilogo.totaleIvaInclusa),
     pageWidth - margin - 10,
     y + 19,
     { align: "right" }
