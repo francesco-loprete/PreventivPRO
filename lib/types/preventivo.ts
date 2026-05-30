@@ -6,6 +6,7 @@ export type Preventivo = {
   prezzo?: number | null;
   aliquota_iva?: number | null;
   firma_cliente?: string | null;
+  valido_fino_al?: string | null;
   totale?: number | null;
   created_at?: string | null;
   user_id: string;
@@ -17,12 +18,13 @@ export type PreventivoInsert = {
   descrizione: string;
   prezzo: number;
   aliquota_iva?: number;
+  valido_fino_al?: string | null;
   user_id: string;
 };
 
 export type PreventivoUpdate = Pick<
   Preventivo,
-  "cliente" | "cliente_id" | "descrizione" | "prezzo" | "aliquota_iva"
+  "cliente" | "cliente_id" | "descrizione" | "prezzo" | "aliquota_iva" | "valido_fino_al"
 >;
 
 export function getPreventivoTotale(preventivo: Preventivo): number {

@@ -50,6 +50,7 @@ export function PreventivoEditModal({
   );
   const [voci, setVoci] = useState<Voce[]>([]);
   const [aliquotaIva, setAliquotaIva] = useState<AliquotaIva>(DEFAULT_ALIQUOTA_IVA);
+  const [validoFinoAl, setValidoFinoAl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -69,6 +70,7 @@ export function PreventivoEditModal({
       vociFromPreventivo(preventivo.descrizione, getPreventivoTotale(preventivo))
     );
     setAliquotaIva(normalizeAliquotaIva(preventivo.aliquota_iva));
+    setValidoFinoAl(preventivo.valido_fino_al?.slice(0, 10) ?? "");
   }, [preventivo, clienti]);
 
   async function handleUpdate(event: FormEvent<HTMLFormElement>) {
@@ -115,6 +117,7 @@ export function PreventivoEditModal({
         descrizione: vociToDescrizione(validation.voci),
         prezzo: validation.totale,
         aliquota_iva: aliquotaIva,
+        valido_fino_al: validoFinoAl.trim() || null,
       })
       .eq("id", preventivo.id)
       .eq("user_id", user.id);
@@ -177,6 +180,23 @@ export function PreventivoEditModal({
           idPrefix={idPrefix}
           totaleGeneraleClassName="text-2xl sm:text-3xl"
         />
+
+        <div className="mb-6">
+          <label
+            htmlFor={`${idPrefix}-valido-fino-al`}
+            className="block mb-2 text-muted text-sm"
+          >
+            Valido fino al
+          </label>
+          <input
+            id={`${idPrefix}-valido-fino-al`}
+            type="date"
+            value={validoFinoAl}
+            onChange={(event) => setValidoFinoAl(event.target.value)}
+            disabled={loading}
+            className="input-field max-w-xs"
+          />
+        </div>
 
         <FirmaClienteSection
           preventivoId={preventivo.id}

@@ -42,6 +42,7 @@ export function PreventivoForm({
   );
   const [voci, setVoci] = useState<Voce[]>([createEmptyVoce()]);
   const [aliquotaIva, setAliquotaIva] = useState<AliquotaIva>(DEFAULT_ALIQUOTA_IVA);
+  const [validoFinoAl, setValidoFinoAl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -91,6 +92,7 @@ export function PreventivoForm({
         descrizione: vociToDescrizione(validation.voci),
         prezzo: validation.totale,
         aliquota_iva: aliquotaIva,
+        valido_fino_al: validoFinoAl.trim() || null,
         user_id: user.id,
       };
 
@@ -107,6 +109,7 @@ export function PreventivoForm({
       );
       setVoci([createEmptyVoce()]);
       setAliquotaIva(DEFAULT_ALIQUOTA_IVA);
+      setValidoFinoAl("");
       router.refresh();
     } catch (err) {
       setError(
@@ -162,6 +165,20 @@ export function PreventivoForm({
         idPrefix="nuovo"
         totaleGeneraleClassName="text-3xl"
       />
+
+      <div className="mb-6 mt-6">
+        <label htmlFor="nuovo-valido-fino-al" className="block mb-2 text-muted text-sm">
+          Valido fino al
+        </label>
+        <input
+          id="nuovo-valido-fino-al"
+          type="date"
+          value={validoFinoAl}
+          onChange={(event) => setValidoFinoAl(event.target.value)}
+          disabled={loading}
+          className="input-field max-w-xs"
+        />
+      </div>
 
       <button type="submit" disabled={loading} className="btn-primary px-6 py-4 mt-6">
         {loading ? "Salvataggio..." : "Salva Preventivo"}

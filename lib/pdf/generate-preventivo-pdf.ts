@@ -34,8 +34,25 @@ const HEADER_HEIGHT_MM = 46;
 const LOGO_MAX_HEIGHT_MM = 34;
 const LOGO_MAX_WIDTH_MM = 36;
 const FIRMA_BOX_HEIGHT_MM = 14;
-const VALIDITY_NOTE =
-  "Preventivo valido 30 giorni dalla data di emissione.";
+
+function formatValiditaLabel(validoFinoAl: string | null | undefined): string {
+  const trimmed = validoFinoAl?.trim();
+  if (!trimmed) return "Scadenza non specificata";
+
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(trimmed);
+  if (match) {
+    return `Valido fino al: ${match[3]}/${match[2]}/${match[1]}`;
+  }
+
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) return "Scadenza non specificata";
+
+  return `Valido fino al: ${new Intl.DateTimeFormat("it-IT", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(parsed)}`;
+}
 
 type PdfClienteDetails = {
   nome: string;
@@ -534,14 +551,15 @@ function drawValidityNote(
   doc: jsPDF,
   margin: number,
   pageHeight: number,
-  startY: number
+  startY: number,
+  validoFinoAl: string | null | undefined
 ): number {
   let y = ensureSpace(doc, startY, 8, pageHeight);
 
   doc.setFont("helvetica", "italic");
   doc.setFontSize(8);
   doc.setTextColor(...MUTED);
-  doc.text(VALIDITY_NOTE, margin, y);
+  doc.text(formatValiditaLabel(validoFinoAl), margin, y);
 
   return y + 5;
 }
@@ -767,7 +785,7 @@ export async function buildPreventivoPdfDocument(
     pageHeight,
     y
   );
-  drawValidityNote(doc, margin, pageHeight, y);
+  drawValidityNote(doc, margin, pageHeight, y, preventivo.valido_fino_al);
 
   return { doc, filename };
 }
