@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
+import { useTranslations } from "@/components/i18n/locale-provider";
 import { createClient } from "@/lib/supabase/client";
 
 export function RegisterForm() {
   const router = useRouter();
+  const t = useTranslations();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -20,12 +22,12 @@ export function RegisterForm() {
     setSuccess(null);
 
     if (password.length < 6) {
-      setError("La password deve avere almeno 6 caratteri.");
+      setError(t("register.passwordMin"));
       return;
     }
 
     if (password !== confirmPassword) {
-      setError("Le password non coincidono.");
+      setError(t("register.passwordMismatch"));
       return;
     }
 
@@ -53,16 +55,14 @@ export function RegisterForm() {
       return;
     }
 
-    setSuccess(
-      "Account creato. Se richiesta la conferma email, controlla la posta e poi accedi."
-    );
+    setSuccess(t("register.success"));
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       <div>
         <label htmlFor="email" className="block mb-2 text-muted text-sm">
-          Email
+          {t("common.email")}
         </label>
         <input
           id="email"
@@ -72,7 +72,7 @@ export function RegisterForm() {
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="nome@azienda.it"
+          placeholder={t("register.emailPlaceholder")}
           className="input-field"
           disabled={loading}
         />
@@ -80,7 +80,7 @@ export function RegisterForm() {
 
       <div>
         <label htmlFor="password" className="block mb-2 text-muted text-sm">
-          Password
+          {t("login.password")}
         </label>
         <input
           id="password"
@@ -91,7 +91,7 @@ export function RegisterForm() {
           minLength={6}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="Minimo 6 caratteri"
+          placeholder={t("register.passwordPlaceholder")}
           className="input-field"
           disabled={loading}
         />
@@ -99,7 +99,7 @@ export function RegisterForm() {
 
       <div>
         <label htmlFor="confirmPassword" className="block mb-2 text-muted text-sm">
-          Conferma password
+          {t("register.confirmPassword")}
         </label>
         <input
           id="confirmPassword"
@@ -109,7 +109,7 @@ export function RegisterForm() {
           required
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
-          placeholder="Ripeti la password"
+          placeholder={t("register.confirmPlaceholder")}
           className="input-field"
           disabled={loading}
         />
@@ -132,13 +132,13 @@ export function RegisterForm() {
         disabled={loading}
         className="w-full btn-primary py-4"
       >
-        {loading ? "Registrazione..." : "Crea account"}
+        {loading ? t("register.signingUp") : t("register.createAccount")}
       </button>
 
       <p className="text-center text-sm text-muted">
-        Hai già un account?{" "}
+        {t("register.hasAccount")}{" "}
         <Link href="/login" className="text-accent hover:text-sky-400 font-medium">
-          Accedi
+          {t("login.signIn")}
         </Link>
       </p>
     </form>

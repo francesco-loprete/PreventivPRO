@@ -2,27 +2,19 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { useLocale, useTranslations } from "@/components/i18n/locale-provider";
 import { PreventivoEditModal } from "@/components/preventivo/preventivo-edit-modal";
 import { PreventivoRowActions } from "@/components/preventivo/preventivo-row-actions";
 import { FormFeedback } from "@/components/ui/form-feedback";
 import { SearchInput } from "@/components/ui/search-input";
 import { usePreventivoActions } from "@/hooks/use-preventivo-actions";
+import { getDateLocale } from "@/lib/i18n/get-messages";
 import { getPreventivoTotaleVisualizzato } from "@/lib/preventivi/iva";
 import { createClient } from "@/lib/supabase/client";
 import { matchesAnyField } from "@/lib/utils/search";
 import type { Cliente } from "@/lib/types/cliente";
 import type { Preventivo } from "@/lib/types/preventivo";
 import { rlsErrorHint } from "@/lib/types/preventivo";
-
-const euroFormatter = new Intl.NumberFormat("it-IT", {
-  style: "currency",
-  currency: "EUR",
-});
-
-const dateFormatter = new Intl.DateTimeFormat("it-IT", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
 
 type PreventiviTableProps = {
   preventivi: Preventivo[];
@@ -34,6 +26,28 @@ export function PreventiviTable({
   clienti,
 }: PreventiviTableProps) {
   const router = useRouter();
+  const t = useTranslations();
+  const { locale } = useLocale();
+  const dateLocale = getDateLocale(locale);
+
+  const euroFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat(dateLocale, {
+        style: "currency",
+        currency: "EUR",
+      }),
+    [dateLocale]
+  );
+
+  const dateFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat(dateLocale, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }),
+    [dateLocale]
+  );
+
   const [searchQuery, setSearchQuery] = useState("");
   const [editing, setEditing] = useState<Preventivo | null>(null);
   const [loading, setLoading] = useState(false);
@@ -53,7 +67,7 @@ export function PreventiviTable({
     handleDuplicate,
   } = usePreventivoActions({
     onDuplicateSuccess: (copied) => {
-      setSuccess("Preventivo duplicato. Modifica la copia qui sotto.");
+      setSuccess(t("preventivi.duplicatedEdit"));
       setEditing(copied);
     },
   });
@@ -78,7 +92,10 @@ export function PreventiviTable({
 
   async function handleDelete(preventivo: Preventivo) {
     const confirmed = window.confirm(
-      `Eliminare il preventivo di ${preventivo.cliente}?`
+      t("preventivi.deleteConfirm", {
+        id: preventivo.id,
+        client: preventivo.cliente,
+      })
     );
     if (!confirmed) return;
 
@@ -94,7 +111,7 @@ export function PreventiviTable({
 
     if (!user) {
       setLoading(false);
-      setError("Sessione scaduta. Accedi di nuovo.");
+      setError(t("common.sessionExpired"));
       return;
     }
 
@@ -111,7 +128,7 @@ export function PreventiviTable({
       return;
     }
 
-    setSuccess("Preventivo eliminato.");
+    setSuccess(t("preventivi.deleted"));
     router.refresh();
   }
 
@@ -122,7 +139,7 @@ export function PreventiviTable({
           id="preventivi-search"
           value={searchQuery}
           onChange={setSearchQuery}
-          placeholder="Cerca per cliente o descrizione..."
+          placeholder={t("preventivi.searchPlaceholder")}
           disabled={loading || anyActionBusy}
         />
       </div>
@@ -137,8 +154,8 @@ export function PreventiviTable({
         <div className="card p-12 text-center">
           <p className="text-muted">
             {searchQuery.trim()
-              ? "Nessun preventivo corrisponde alla ricerca."
-              : "Nessun preventivo salvato."}
+              ? t("preventivi.emptySearch")
+              : t("preventivi.empty")}
           </p>
         </div>
       ) : (
@@ -148,16 +165,16 @@ export function PreventiviTable({
               <thead>
                 <tr className="border-b border-border bg-slate-950/40">
                   <th className="px-6 py-4 text-sm font-semibold text-muted uppercase tracking-wide">
-                    Cliente
+                    {t("common.client")}
                   </th>
                   <th className="px-6 py-4 text-sm font-semibold text-muted uppercase tracking-wide text-right">
-                    Totale
+                    {t("common.total")}
                   </th>
                   <th className="px-6 py-4 text-sm font-semibold text-muted uppercase tracking-wide">
-                    Data
+                    {t("common.date")}
                   </th>
                   <th className="px-6 py-4 text-sm font-semibold text-muted uppercase tracking-wide text-right">
-                    Azioni
+                    {t("common.actions")}
                   </th>
                 </tr>
               </thead>

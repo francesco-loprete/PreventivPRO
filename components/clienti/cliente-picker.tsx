@@ -2,6 +2,7 @@
 
 import type { Cliente } from "@/lib/types/cliente";
 import type { ClientePickerValue } from "@/lib/clienti/resolve-cliente";
+import { useTranslations } from "@/components/i18n/locale-provider";
 
 export type ClientePickerState = ClientePickerValue;
 
@@ -69,6 +70,8 @@ export function ClientePicker({
   disabled = false,
   idPrefix = "cliente",
 }: ClientePickerProps) {
+  const t = useTranslations();
+
   function setExisting(clienteId: number) {
     const found = clienti.find((c) => c.id === clienteId);
     if (!found) return;
@@ -104,7 +107,7 @@ export function ClientePicker({
               : "border-border text-muted hover:border-accent/50"
           } disabled:opacity-40`}
         >
-          Cliente esistente
+          {t("preventivo.existingClient")}
         </button>
         <button
           type="button"
@@ -125,7 +128,7 @@ export function ClientePicker({
               : "border-border text-muted hover:border-accent/50"
           }`}
         >
-          Nuovo cliente
+          {t("preventivo.newClient")}
         </button>
       </div>
 
@@ -135,11 +138,11 @@ export function ClientePicker({
             htmlFor={`${idPrefix}-select`}
             className="block mb-2 text-muted text-sm"
           >
-            Seleziona cliente
+            {t("preventivo.selectClient")}
           </label>
           {clienti.length === 0 ? (
             <p className="text-sm text-muted">
-              Nessun cliente in archivio. Crea un nuovo cliente.
+              {t("preventivo.noClientsInArchive")}
             </p>
           ) : (
             <select
@@ -166,7 +169,7 @@ export function ClientePicker({
               htmlFor={`${idPrefix}-nome`}
               className="block mb-2 text-muted text-sm"
             >
-              Nome *
+              {t("preventivo.nameRequired")}
             </label>
             <input
               id={`${idPrefix}-nome`}
@@ -186,7 +189,7 @@ export function ClientePicker({
                 htmlFor={`${idPrefix}-telefono`}
                 className="block mb-2 text-muted text-sm"
               >
-                Telefono
+                {t("common.phone")}
               </label>
               <input
                 id={`${idPrefix}-telefono`}
@@ -203,7 +206,7 @@ export function ClientePicker({
                 htmlFor={`${idPrefix}-email`}
                 className="block mb-2 text-muted text-sm"
               >
-                Email
+                {t("common.email")}
               </label>
               <input
                 id={`${idPrefix}-email`}
@@ -222,7 +225,7 @@ export function ClientePicker({
               htmlFor={`${idPrefix}-indirizzo`}
               className="block mb-2 text-muted text-sm"
             >
-              Indirizzo
+              {t("common.address")}
             </label>
             <input
               id={`${idPrefix}-indirizzo`}
@@ -240,7 +243,7 @@ export function ClientePicker({
               htmlFor={`${idPrefix}-note`}
               className="block mb-2 text-muted text-sm"
             >
-              Note
+              {t("common.notes")}
             </label>
             <textarea
               id={`${idPrefix}-note`}

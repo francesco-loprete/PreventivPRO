@@ -10,6 +10,7 @@ import {
 import { PreventivoTotali } from "@/components/preventivo/preventivo-totali";
 import { VociEditor } from "@/components/preventivo/voci-editor";
 import { FormFeedback } from "@/components/ui/form-feedback";
+import { useLocale, useTranslations } from "@/components/i18n/locale-provider";
 import { resolveClienteForPreventivo } from "@/lib/clienti/resolve-cliente";
 import {
   calcolaTotaleVoci,
@@ -37,6 +38,8 @@ export function PreventivoForm({
   initialClienteId,
 }: PreventivoFormProps) {
   const router = useRouter();
+  const t = useTranslations();
+  const { translateError } = useLocale();
   const [clientePicker, setClientePicker] = useState<ClientePickerState>(() =>
     createClientePickerState(clienti, { clienteId: initialClienteId })
   );
@@ -56,7 +59,7 @@ export function PreventivoForm({
 
     const validation = validateVoci(voci);
     if (!validation.ok) {
-      setError(validation.message);
+      setError(translateError(validation.message));
       return;
     }
 
@@ -69,7 +72,7 @@ export function PreventivoForm({
       } = await supabase.auth.getUser();
 
       if (!user) {
-        setError("Sessione scaduta. Accedi di nuovo.");
+        setError(t("common.sessionExpired"));
         setLoading(false);
         return;
       }
@@ -81,7 +84,7 @@ export function PreventivoForm({
       );
 
       if (!resolved.ok) {
-        setError(resolved.message);
+        setError(translateError(resolved.message));
         setLoading(false);
         return;
       }
@@ -115,7 +118,7 @@ export function PreventivoForm({
       setError(
         err instanceof Error
           ? err.message
-          : "Errore imprevisto durante il salvataggio."
+          : t("common.unexpectedSaveError")
       );
     } finally {
       setLoading(false);
@@ -125,7 +128,7 @@ export function PreventivoForm({
   return (
     <form onSubmit={handleSubmit} className="card p-4 sm:p-6 md:p-8 max-w-4xl w-full min-w-0 overflow-x-hidden">
       <div className="mb-6">
-        <label className="block mb-2 text-muted text-sm">Cliente</label>
+        <label className="block mb-2 text-muted text-sm">{t("common.client")}</label>
         <ClientePicker
           clienti={clienti}
           value={clientePicker}
@@ -136,7 +139,7 @@ export function PreventivoForm({
       </div>
 
       <div className="mb-6">
-        <label className="block mb-2 text-muted text-sm">Voci Preventivo</label>
+        <label className="block mb-2 text-muted text-sm">{t("preventivo.quoteLines")}</label>
         <VociEditor
           voci={voci}
           onChange={setVoci}
@@ -150,11 +153,11 @@ export function PreventivoForm({
       )}
 
       {success && (
-        <FormFeedback success="Preventivo salvato con successo." className="mb-4" />
+        <FormFeedback success={t("preventivo.quoteSaved")} className="mb-4" />
       )}
 
       {loading && (
-        <FormFeedback loading loadingMessage="Salvataggio in corso..." className="mb-4" />
+        <FormFeedback loading loadingMessage={t("common.saving")} className="mb-4" />
       )}
 
       <PreventivoTotali
@@ -168,7 +171,7 @@ export function PreventivoForm({
 
       <div className="mb-6 mt-6">
         <label htmlFor="nuovo-valido-fino-al" className="block mb-2 text-muted text-sm">
-          Valido fino al
+          {t("preventivo.validUntil")}
         </label>
         <input
           id="nuovo-valido-fino-al"
@@ -181,7 +184,7 @@ export function PreventivoForm({
       </div>
 
       <button type="submit" disabled={loading} className="btn-primary px-6 py-4 mt-6">
-        {loading ? "Salvataggio..." : "Salva Preventivo"}
+        {loading ? t("common.saving") : t("preventivo.saveQuote")}
       </button>
     </form>
   );

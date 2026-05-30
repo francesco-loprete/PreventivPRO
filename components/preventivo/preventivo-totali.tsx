@@ -6,6 +6,7 @@ import {
   type AliquotaIva,
 } from "@/lib/preventivi/iva";
 import { formatImportoDisplay } from "@/lib/preventivi/voci";
+import { useTranslations } from "@/components/i18n/locale-provider";
 
 type PreventivoTotaliProps = {
   imponibile: number;
@@ -24,12 +25,13 @@ export function PreventivoTotali({
   idPrefix = "preventivo",
   totaleGeneraleClassName = "text-3xl",
 }: PreventivoTotaliProps) {
+  const t = useTranslations();
   const riepilogo = calcolaRiepilogoIva(imponibile, aliquotaIva);
 
   return (
     <div className="mt-6 space-y-4">
       <div className="text-right">
-        <p className="text-muted text-sm">Totale Generale</p>
+        <p className="text-muted text-sm">{t("preventivo.totalGeneral")}</p>
         <p className={`font-bold text-accent ${totaleGeneraleClassName}`}>
           € {formatImportoDisplay(imponibile)}
         </p>
@@ -40,7 +42,7 @@ export function PreventivoTotali({
           htmlFor={`${idPrefix}-aliquota-iva`}
           className="block mb-2 text-muted text-sm"
         >
-          Aliquota IVA
+          {t("preventivo.vatRate")}
         </label>
         <select
           id={`${idPrefix}-aliquota-iva`}
@@ -61,19 +63,21 @@ export function PreventivoTotali({
 
       <dl className="border-t border-border pt-4 space-y-2 text-sm">
         <div className="flex justify-between gap-4">
-          <dt className="text-muted">Imponibile</dt>
+          <dt className="text-muted">{t("preventivo.taxableAmount")}</dt>
           <dd className="font-medium tabular-nums">
             € {formatImportoDisplay(riepilogo.imponibile)}
           </dd>
         </div>
         <div className="flex justify-between gap-4">
-          <dt className="text-muted">IVA ({riepilogo.aliquota}%)</dt>
+          <dt className="text-muted">
+            {t("preventivo.vatAmount", { rate: riepilogo.aliquota })}
+          </dt>
           <dd className="font-medium tabular-nums">
             € {formatImportoDisplay(riepilogo.iva)}
           </dd>
         </div>
         <div className="flex justify-between gap-4 text-base">
-          <dt className="font-semibold">Totale IVA inclusa</dt>
+          <dt className="font-semibold">{t("preventivo.totalWithVat")}</dt>
           <dd className="font-bold text-accent tabular-nums">
             € {formatImportoDisplay(riepilogo.totaleIvaInclusa)}
           </dd>

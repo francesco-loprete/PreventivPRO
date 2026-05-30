@@ -1,17 +1,9 @@
-import { AuthCard } from "@/components/auth/auth-card";
-import { RegisterForm } from "@/components/auth/register-form";
+import { RegisterPageContent } from "@/components/auth/register-page-content";
 
 export const metadata = {
   title: "Registrati",
 };
 
 export default function RegistrazionePage() {
-  return (
-    <AuthCard
-      title="Crea account"
-      subtitle="Registrati per salvare e gestire i preventivi su PreventivPRO."
-    >
-      <RegisterForm />
-    </AuthCard>
-  );
+  return <RegisterPageContent />;
 }

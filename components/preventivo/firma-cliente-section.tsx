@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslations } from "@/components/i18n/locale-provider";
 import { FormFeedback } from "@/components/ui/form-feedback";
 import { createClient } from "@/lib/supabase/client";
 import { rlsErrorHint } from "@/lib/types/preventivo";
@@ -44,6 +45,7 @@ export function FirmaClienteSection({
   onSaved,
 }: FirmaClienteSectionProps) {
   const router = useRouter();
+  const t = useTranslations();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const drawingRef = useRef(false);
@@ -208,7 +210,7 @@ export function FirmaClienteSection({
 
     if (!user) {
       setLoading(false);
-      setError("Sessione scaduta. Accedi di nuovo.");
+      setError(t("common.sessionExpired"));
       return;
     }
 
@@ -226,7 +228,7 @@ export function FirmaClienteSection({
     }
 
     setSavedFirma(firmaToSave);
-    setSuccess(firmaToSave ? "Firma salvata con successo." : "Firma rimossa.");
+    setSuccess(firmaToSave ? t("firma.saved") : t("firma.removed"));
     onSaved?.(firmaToSave);
     router.refresh();
   }
@@ -234,7 +236,7 @@ export function FirmaClienteSection({
   return (
     <div className="mt-6 border-t border-border pt-6">
       <label className="block mb-3 text-muted text-sm font-medium">
-        Firma Cliente
+        {t("firma.label")}
       </label>
 
       <div
@@ -245,19 +247,19 @@ export function FirmaClienteSection({
           ref={canvasRef}
           id={`${idPrefix}-canvas`}
           className="block w-full cursor-crosshair touch-none"
-          aria-label="Area firma cliente"
+          aria-label={t("firma.canvasAria")}
         />
       </div>
 
       <p className="text-xs text-muted mt-2">
-        Disegna la firma con mouse o dito su mobile.
+        {t("firma.hint")}
       </p>
 
       <FormFeedback
         error={error}
         success={success}
         loading={loading}
-        loadingMessage="Salvataggio firma..."
+        loadingMessage={t("firma.loadingMessage")}
         className="mt-3 space-y-2"
       />
 
@@ -268,7 +270,7 @@ export function FirmaClienteSection({
           disabled={loading}
           className="btn-secondary flex-1 sm:flex-none disabled:opacity-50"
         >
-          Cancella Firma
+          {t("firma.clear")}
         </button>
         <button
           type="button"
@@ -276,7 +278,7 @@ export function FirmaClienteSection({
           disabled={loading}
           className="btn-primary flex-1 sm:flex-none disabled:opacity-50"
         >
-          {loading ? "Salvataggio..." : "Salva Firma"}
+          {loading ? t("firma.saving") : t("firma.save")}
         </button>
       </div>
     </div>

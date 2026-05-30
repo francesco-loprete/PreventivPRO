@@ -11,6 +11,7 @@ import { FirmaClienteSection } from "@/components/preventivo/firma-cliente-secti
 import { PreventivoTotali } from "@/components/preventivo/preventivo-totali";
 import { VociEditor } from "@/components/preventivo/voci-editor";
 import { FormFeedback } from "@/components/ui/form-feedback";
+import { useLocale, useTranslations } from "@/components/i18n/locale-provider";
 import { resolveClienteForPreventivo } from "@/lib/clienti/resolve-cliente";
 import {
   DEFAULT_ALIQUOTA_IVA,
@@ -45,6 +46,8 @@ export function PreventivoEditModal({
   idPrefix = "edit",
 }: PreventivoEditModalProps) {
   const router = useRouter();
+  const t = useTranslations();
+  const { translateError } = useLocale();
   const [clientePicker, setClientePicker] = useState<ClientePickerState>(() =>
     createClientePickerState(clienti)
   );
@@ -79,7 +82,7 @@ export function PreventivoEditModal({
 
     const validation = validateVoci(voci);
     if (!validation.ok) {
-      setError(validation.message);
+      setError(translateError(validation.message));
       return;
     }
 
@@ -93,7 +96,7 @@ export function PreventivoEditModal({
 
     if (!user) {
       setLoading(false);
-      setError("Sessione scaduta. Accedi di nuovo.");
+      setError(t("common.sessionExpired"));
       return;
     }
 
@@ -105,7 +108,7 @@ export function PreventivoEditModal({
 
     if (!resolved.ok) {
       setLoading(false);
-      setError(resolved.message);
+      setError(translateError(resolved.message));
       return;
     }
 
@@ -130,7 +133,7 @@ export function PreventivoEditModal({
     }
 
     onClose();
-    onSuccess?.("Preventivo aggiornato con successo.");
+    onSuccess?.(t("preventivo.quoteUpdated"));
     router.refresh();
   }
 
@@ -148,11 +151,12 @@ export function PreventivoEditModal({
         className="w-full max-w-4xl max-h-[90vh] overflow-y-auto overflow-x-hidden card p-4 sm:p-6 md:p-8 shadow-2xl shadow-black/40 min-w-0"
       >
         <h2 id={`${idPrefix}-edit-title`} className="text-2xl font-bold mb-6">
-          Modifica <span className="text-accent">preventivo</span>
+          {t("preventivo.editTitle")}{" "}
+          <span className="text-accent">{t("preventivo.editTitleAccent")}</span>
         </h2>
 
         <div className="mb-6">
-          <label className="block mb-2 text-muted text-sm">Cliente</label>
+          <label className="block mb-2 text-muted text-sm">{t("common.client")}</label>
           <ClientePicker
             clienti={clienti}
             value={clientePicker}
@@ -163,7 +167,7 @@ export function PreventivoEditModal({
         </div>
 
         <div className="mb-6">
-          <label className="block mb-2 text-muted text-sm">Voci Preventivo</label>
+          <label className="block mb-2 text-muted text-sm">{t("preventivo.quoteLines")}</label>
           <VociEditor
             voci={voci}
             onChange={setVoci}
@@ -186,7 +190,7 @@ export function PreventivoEditModal({
             htmlFor={`${idPrefix}-valido-fino-al`}
             className="block mb-2 text-muted text-sm"
           >
-            Valido fino al
+            {t("preventivo.validUntil")}
           </label>
           <input
             id={`${idPrefix}-valido-fino-al`}
@@ -207,7 +211,7 @@ export function PreventivoEditModal({
         <FormFeedback
           error={error}
           loading={loading}
-          loadingMessage="Salvataggio in corso..."
+          loadingMessage={t("common.saving")}
           className="mb-4 space-y-2"
         />
 
@@ -218,14 +222,14 @@ export function PreventivoEditModal({
             disabled={loading}
             className="btn-secondary disabled:opacity-50"
           >
-            Annulla
+            {t("common.cancel")}
           </button>
           <button
             type="submit"
             disabled={loading}
             className="btn-primary disabled:opacity-50"
           >
-            {loading ? "Salvataggio..." : "Salva modifiche"}
+            {loading ? t("common.saving") : t("clienti.saveChanges")}
           </button>
         </div>
       </form>

@@ -1,3 +1,9 @@
+import type { AppLocale } from "@/lib/i18n/types";
+import {
+  createTranslator,
+  getDateLocale,
+  getWhatsAppMessages,
+} from "@/lib/i18n/get-messages";
 import type { Preventivo } from "@/lib/types/preventivo";
 import { getPreventivoTotale } from "@/lib/types/preventivo";
 
@@ -12,14 +18,23 @@ export function buildPreventivoPdfFilename(cliente: string): string {
   return `preventivo-${slug}.pdf`;
 }
 
-export function buildWhatsAppMessage(preventivo: Preventivo): string {
+export function buildWhatsAppMessage(
+  preventivo: Preventivo,
+  locale: AppLocale = "it"
+): string {
+  const t = createTranslator(locale);
+  const dateLocale = getDateLocale(locale);
   const totale = getPreventivoTotale(preventivo);
-  const totaleFormatted = totale.toLocaleString("it-IT", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+  const totaleFormatted = totale.toLocaleString(dateLocale, {
+    style: "currency",
+    currency: "EUR",
   });
 
-  return `Ciao, ti invio il preventivo di ${preventivo.cliente} per un totale di €${totaleFormatted}.`;
+  return t("whatsapp.message", {
+    client: preventivo.cliente,
+    id: preventivo.id,
+    total: totaleFormatted,
+  });
 }
 
 export function downloadPdfBlob(blob: Blob, filename: string): void {
@@ -68,8 +83,11 @@ export type SharePreventivoPdfResult = "shared" | "downloaded";
 export async function sharePreventivoPdfViaWhatsApp(
   blob: Blob,
   filename: string,
-  message: string
+  message: string,
+  locale: AppLocale = "it"
 ): Promise<SharePreventivoPdfResult> {
+  const whatsapp = getWhatsAppMessages(locale);
+
   try {
     const shared = await sharePdfWithNativeSheet(blob, filename, message);
     if (shared) {
@@ -82,9 +100,7 @@ export async function sharePreventivoPdfViaWhatsApp(
   }
 
   downloadPdfBlob(blob, filename);
-  openWhatsAppText(
-    `${message}\n\nIl PDF del preventivo è stato scaricato: allegalo a questo messaggio in WhatsApp.`
-  );
+  openWhatsAppText(`${message}\n\n${whatsapp.attachmentNote}`);
 
   return "downloaded";
 }

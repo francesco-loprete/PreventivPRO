@@ -9,6 +9,7 @@ import {
   parsePrezzoInput,
   parseQuantitaInput,
 } from "@/lib/preventivi/voci";
+import { useTranslations } from "@/components/i18n/locale-provider";
 
 const inputCompact =
   "w-full min-w-0 max-w-full box-border bg-slate-950/60 border border-border rounded-lg px-2 py-2 text-sm focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent/20";
@@ -32,6 +33,8 @@ export function VociEditor({
   disabled = false,
   idPrefix = "voce",
 }: VociEditorProps) {
+  const t = useTranslations();
+
   function aggiornaVoce(index: number, campo: keyof Voce, valore: string | number) {
     onChange(
       voci.map((voce, i) => (i === index ? { ...voce, [campo]: valore } : voce))
@@ -58,11 +61,11 @@ export function VociEditor({
   return (
     <div className="voci-editor-root w-full min-w-0 max-w-full overflow-x-hidden">
       <div className="hidden md:grid md:grid-cols-[minmax(0,1fr)_56px_72px_64px_64px_28px] md:gap-2 mb-2 text-xs text-muted uppercase tracking-wide">
-        <span>Descrizione</span>
-        <span className="text-center">Q.tà</span>
-        <span className="text-center">U.M.</span>
-        <span className="text-center">Prezzo</span>
-        <span className="text-center">Totale</span>
+        <span>{t("preventivo.description")}</span>
+        <span className="text-center">{t("preventivo.qty")}</span>
+        <span className="text-center">{t("preventivo.unit")}</span>
+        <span className="text-center">{t("preventivo.price")}</span>
+        <span className="text-center">{t("preventivo.total")}</span>
         <span />
       </div>
 
@@ -74,7 +77,7 @@ export function VociEditor({
           >
             <div className="flex items-center justify-between gap-2 md:hidden">
               <span className="text-xs text-muted uppercase tracking-wide">
-                Riga {index + 1}
+                {t("preventivo.row", { n: index + 1 })}
               </span>
               {voci.length > 1 && (
                 <button
@@ -82,16 +85,16 @@ export function VociEditor({
                   onClick={() => rimuoviVoce(index)}
                   disabled={disabled}
                   className="text-red-400 hover:text-red-300 text-sm px-2 py-1 shrink-0"
-                  aria-label="Rimuovi riga"
+                  aria-label={t("preventivo.removeRow")}
                 >
-                  Rimuovi
+                  {t("preventivo.removeRow")}
                 </button>
               )}
             </div>
 
             <div className="w-full min-w-0 md:min-w-0">
               <label htmlFor={`${idPrefix}-desc-${index}`} className={mobileLabel}>
-                Descrizione
+                {t("preventivo.description")}
               </label>
               <input
                 id={index === 0 ? `${idPrefix}-descrizione` : `${idPrefix}-desc-${index}`}
@@ -101,7 +104,7 @@ export function VociEditor({
                 onChange={(e) =>
                   aggiornaVoce(index, "descrizione", e.target.value)
                 }
-                placeholder="Lavoro..."
+                placeholder={t("preventivo.workPlaceholder")}
                 className={inputCompact}
                 disabled={disabled}
               />
@@ -109,7 +112,7 @@ export function VociEditor({
 
             <div className="voce-fields-grid grid grid-cols-2 gap-3 w-full min-w-0 md:contents">
               <div className="min-w-0">
-                <label className={mobileLabel}>Q.tà</label>
+                <label className={mobileLabel}>{t("preventivo.qty")}</label>
                 <input
                   type="text"
                   inputMode="numeric"
@@ -121,12 +124,12 @@ export function VociEditor({
                   }
                   className={`${inputCompact} md:text-center`}
                   disabled={disabled}
-                  aria-label="Quantità"
+                  aria-label={t("preventivo.qty")}
                 />
               </div>
 
               <div className="min-w-0">
-                <label className={mobileLabel}>U.M.</label>
+                <label className={mobileLabel}>{t("preventivo.unit")}</label>
                 <input
                   type="text"
                   placeholder="pz"
@@ -134,12 +137,12 @@ export function VociEditor({
                   onChange={(e) => aggiornaVoce(index, "unita", e.target.value)}
                   className={`${inputCompact} md:text-center`}
                   disabled={disabled}
-                  aria-label="Unità di misura"
+                  aria-label={t("preventivo.unit")}
                 />
               </div>
 
               <div className="min-w-0">
-                <label className={mobileLabel}>Prezzo</label>
+                <label className={mobileLabel}>{t("preventivo.price")}</label>
                 <input
                   type="text"
                   inputMode="decimal"
@@ -150,12 +153,12 @@ export function VociEditor({
                   }
                   className={`${inputCompact} md:text-center`}
                   disabled={disabled}
-                  aria-label="Prezzo unitario"
+                  aria-label={t("preventivo.price")}
                 />
               </div>
 
               <div className="min-w-0">
-                <label className={mobileLabel}>Totale</label>
+                <label className={mobileLabel}>{t("preventivo.total")}</label>
                 <input
                   type="text"
                   value={formatImportoDisplay(
@@ -164,7 +167,7 @@ export function VociEditor({
                   readOnly
                   tabIndex={-1}
                   className={`${inputCompact} md:text-center bg-slate-900/80 text-accent font-medium`}
-                  aria-label="Totale riga"
+                  aria-label={t("preventivo.total")}
                 />
               </div>
             </div>
@@ -175,7 +178,7 @@ export function VociEditor({
                 onClick={() => rimuoviVoce(index)}
                 disabled={disabled}
                 className="hidden md:inline text-red-400 hover:text-red-300 text-sm leading-none justify-self-center"
-                aria-label="Rimuovi riga"
+                aria-label={t("preventivo.removeRow")}
               >
                 ✕
               </button>
@@ -192,7 +195,7 @@ export function VociEditor({
         disabled={disabled}
         className="mt-4 btn-secondary text-sm py-2 px-4 w-full md:w-auto"
       >
-        + Aggiungi Riga
+        {t("preventivo.addRow")}
       </button>
     </div>
   );

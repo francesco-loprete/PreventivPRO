@@ -1,6 +1,8 @@
 import { Suspense } from "react";
-import { AuthCard } from "@/components/auth/auth-card";
-import { LoginForm } from "@/components/auth/login-form";
+import {
+  LoginPageContent,
+  LoginPageFallback,
+} from "@/components/auth/login-page-content";
 
 export const metadata = {
   title: "Accedi",
@@ -8,13 +10,8 @@ export const metadata = {
 
 export default function LoginPage() {
   return (
-    <AuthCard
-      title="Accedi"
-      subtitle="Inserisci le credenziali per gestire i tuoi preventivi."
-    >
-      <Suspense fallback={<p className="text-gray-400 text-sm">Caricamento...</p>}>
-        <LoginForm />
-      </Suspense>
-    </AuthCard>
+    <Suspense fallback={<LoginPageFallback />}>
+      <LoginPageContent />
+    </Suspense>
   );
 }

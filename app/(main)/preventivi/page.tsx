@@ -1,9 +1,8 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
+import { PreventiviPageContent } from "@/components/preventivi/preventivi-page-content";
 import { getUserClienti } from "@/lib/clienti/queries";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { getUserPreventivi } from "@/lib/preventivi/queries";
-import { PreventiviTable } from "./preventivi-table";
 
 export const dynamic = "force-dynamic";
 
@@ -29,42 +28,18 @@ export default async function PreventiviPage() {
     }
 
     return (
-      <>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10">
-          <h1 className="text-4xl font-bold tracking-tight">Preventivi</h1>
-        </div>
-        <div className="card p-8 text-red-400 border-red-900/40">
-          Errore nel caricamento: {result.message}
-        </div>
-      </>
+      <PreventiviPageContent
+        preventivi={[]}
+        clienti={clienti}
+        errorMessage={result.message}
+      />
     );
   }
 
-  const { preventivi } = result;
-
   return (
-    <>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10">
-        <h1 className="text-4xl font-bold tracking-tight">Preventivi</h1>
-
-        <Link href="/nuovo-preventivo" className="btn-primary text-center">
-          + Nuovo Preventivo
-        </Link>
-      </div>
-
-      {!preventivi.length ? (
-        <div className="card p-12 text-center">
-          <p className="text-muted mb-6">Nessun preventivo salvato.</p>
-          <Link
-            href="/nuovo-preventivo"
-            className="text-accent font-semibold hover:text-sky-400"
-          >
-            Crea il primo preventivo
-          </Link>
-        </div>
-      ) : (
-        <PreventiviTable preventivi={preventivi} clienti={clienti} />
-      )}
-    </>
+    <PreventiviPageContent
+      preventivi={result.preventivi}
+      clienti={clienti}
+    />
   );
 }

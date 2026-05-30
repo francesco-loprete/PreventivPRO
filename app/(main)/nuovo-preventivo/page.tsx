@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { NuovoPreventivoHeader } from "@/components/preventivo/nuovo-preventivo-header";
 import { getUserClienti } from "@/lib/clienti/queries";
 import { createClient } from "@/lib/supabase/server";
 import { PreventivoForm } from "./preventivo-form";
@@ -33,9 +34,7 @@ export default async function NuovoPreventivo({ searchParams }: NuovoPreventivoP
 
   return (
     <>
-      <h1 className="text-4xl font-bold mb-10 tracking-tight">
-        Nuovo <span className="text-accent">Preventivo</span>
-      </h1>
+      <NuovoPreventivoHeader />
       <PreventivoForm clienti={clienti} initialClienteId={initialClienteId} />
     </>
   );

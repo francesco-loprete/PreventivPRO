@@ -1,25 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useLocale, useTranslations } from "@/components/i18n/locale-provider";
 import { PreventivoEditModal } from "@/components/preventivo/preventivo-edit-modal";
 import { PreventivoViewModal } from "@/components/preventivo/preventivo-view-modal";
 import { FormFeedback } from "@/components/ui/form-feedback";
 import { computeClienteStats } from "@/lib/clienti/cliente-stats";
 import { usePreventivoActions } from "@/hooks/use-preventivo-actions";
+import { getDateLocale } from "@/lib/i18n/get-messages";
 import { getPreventivoTotaleVisualizzato } from "@/lib/preventivi/iva";
 import type { Cliente } from "@/lib/types/cliente";
 import type { Preventivo } from "@/lib/types/preventivo";
-
-const euroFormatter = new Intl.NumberFormat("it-IT", {
-  style: "currency",
-  currency: "EUR",
-});
-
-const dateFormatter = new Intl.DateTimeFormat("it-IT", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
 
 type ClienteFolderProps = {
   cliente: Cliente;
@@ -33,6 +25,8 @@ type PreventivoCardProps = {
   modificaDisabled: boolean;
   pdfGeneratingId: number | null;
   whatsappSharingId: number | null;
+  euroFormatter: Intl.NumberFormat;
+  dateFormatter: Intl.DateTimeFormat;
   onApri: () => void;
   onModifica: () => void;
   onPdf: () => void;
@@ -45,17 +39,22 @@ function PreventivoCard({
   modificaDisabled,
   pdfGeneratingId,
   whatsappSharingId,
+  euroFormatter,
+  dateFormatter,
   onApri,
   onModifica,
   onPdf,
   onWhatsApp,
 }: PreventivoCardProps) {
+  const t = useTranslations();
+
   return (
     <article className="card p-4 sm:p-5 min-w-0">
       <div className="flex items-start justify-between gap-3 mb-4">
         <div className="min-w-0">
           <p className="text-xs text-muted uppercase tracking-wide">
-            Preventivo N° {preventivo.id}
+            {t("preventivo.viewTitle")}{" "}
+            {t("preventivo.viewNumber", { id: preventivo.id })}
           </p>
           <p className="text-sm text-muted mt-1">
             {preventivo.created_at
@@ -75,7 +74,7 @@ function PreventivoCard({
           disabled={isBusy}
           className="btn-ghost hover:border-accent hover:text-accent w-full py-2.5 text-sm font-medium"
         >
-          Apri
+          {t("actions.open")}
         </button>
         <button
           type="button"
@@ -83,25 +82,27 @@ function PreventivoCard({
           disabled={modificaDisabled}
           className="btn-ghost hover:border-accent hover:text-accent w-full py-2.5 text-sm font-medium"
         >
-          Modifica
+          {t("actions.edit")}
         </button>
         <button
           type="button"
           onClick={onPdf}
           disabled={isBusy}
           className="btn-ghost hover:border-accent hover:text-accent w-full py-2.5 text-sm font-medium"
-          aria-label={`Scarica PDF preventivo N° ${preventivo.id}`}
+          aria-label={`${t("actions.pdfAria")} ${preventivo.id}`}
         >
-          {pdfGeneratingId === preventivo.id ? "PDF..." : "PDF"}
+          {pdfGeneratingId === preventivo.id
+            ? t("actions.pdfLoading")
+            : t("actions.pdf")}
         </button>
         <button
           type="button"
           onClick={onWhatsApp}
           disabled={isBusy}
           className="btn-ghost hover:border-[#25D366] hover:text-[#25D366] w-full py-2.5 text-sm font-medium"
-          aria-label={`Condividi preventivo N° ${preventivo.id} su WhatsApp`}
+          aria-label={`${t("actions.whatsappAria")} ${preventivo.id}`}
         >
-          {whatsappSharingId === preventivo.id ? "..." : "WhatsApp"}
+          {whatsappSharingId === preventivo.id ? "..." : t("actions.whatsapp")}
         </button>
       </div>
     </article>
@@ -113,6 +114,28 @@ export function ClienteFolder({
   preventivi,
   clienti,
 }: ClienteFolderProps) {
+  const t = useTranslations();
+  const { locale } = useLocale();
+  const dateLocale = getDateLocale(locale);
+
+  const euroFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat(dateLocale, {
+        style: "currency",
+        currency: "EUR",
+      }),
+    [dateLocale]
+  );
+
+  const dateFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat(dateLocale, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }),
+    [dateLocale]
+  );
+
   const stats = computeClienteStats(preventivi, cliente);
   const [viewing, setViewing] = useState<Preventivo | null>(null);
   const [editing, setEditing] = useState<Preventivo | null>(null);
@@ -145,44 +168,66 @@ export function ClienteFolder({
           href="/clienti"
           className="text-sm text-accent/80 hover:text-sky-400 inline-block"
         >
-          ← Torna ai clienti
+          {t("clientiFolder.backToClients")}
         </Link>
 
         <Link
           href={`/nuovo-preventivo?clienteId=${cliente.id}`}
           className="btn-primary w-full text-center mt-4 mb-6 block sm:w-auto sm:inline-block"
         >
-          Nuovo preventivo per questo cliente
+          {t("clientiFolder.newQuoteForClient")}
         </Link>
 
         <h1 className="text-3xl sm:text-4xl font-bold tracking-tight break-words">
           {cliente.nome}
         </h1>
-        <p className="text-muted mt-2 text-sm">Cartella cliente</p>
+        <p className="text-muted mt-2 text-sm">{t("clientiFolder.folderSubtitle")}</p>
       </div>
 
       {(cliente.telefono || cliente.email || cliente.indirizzo || cliente.note) && (
         <div className="card p-4 sm:p-6 mb-6 text-sm text-muted space-y-1">
-          {cliente.telefono && <p>Telefono: {cliente.telefono}</p>}
-          {cliente.email && <p>Email: {cliente.email}</p>}
-          {cliente.indirizzo && <p>Indirizzo: {cliente.indirizzo}</p>}
-          {cliente.note && <p>Note: {cliente.note}</p>}
+          {cliente.telefono && (
+            <p>
+              {t("clientiFolder.phoneLabel")} {cliente.telefono}
+            </p>
+          )}
+          {cliente.email && (
+            <p>
+              {t("clientiFolder.emailLabel")} {cliente.email}
+            </p>
+          )}
+          {cliente.indirizzo && (
+            <p>
+              {t("clientiFolder.addressLabel")} {cliente.indirizzo}
+            </p>
+          )}
+          {cliente.note && (
+            <p>
+              {t("clientiFolder.notesLabel")} {cliente.note}
+            </p>
+          )}
         </div>
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <div className="card p-4">
-          <p className="text-xs text-muted uppercase tracking-wide">Preventivi</p>
+          <p className="text-xs text-muted uppercase tracking-wide">
+            {t("nav.quotes")}
+          </p>
           <p className="text-2xl font-bold mt-2">{stats.preventiviCount}</p>
         </div>
         <div className="card p-4">
-          <p className="text-xs text-muted uppercase tracking-wide">Valore totale</p>
+          <p className="text-xs text-muted uppercase tracking-wide">
+            {t("clientiFolder.totalValue")}
+          </p>
           <p className="text-2xl font-bold mt-2 text-accent">
             {euroFormatter.format(stats.totalePreventivi)}
           </p>
         </div>
         <div className="card p-4">
-          <p className="text-xs text-muted uppercase tracking-wide">Ultimo preventivo</p>
+          <p className="text-xs text-muted uppercase tracking-wide">
+            {t("dashboard.lastQuote")}
+          </p>
           <p className="text-sm font-medium mt-2">
             {stats.ultimoPreventivo?.created_at
               ? dateFormatter.format(new Date(stats.ultimoPreventivo.created_at))
@@ -199,14 +244,12 @@ export function ClienteFolder({
 
       {stats.preventivi.length === 0 ? (
         <div className="card p-8 sm:p-12 text-center">
-          <p className="text-muted mb-6">
-            Nessun preventivo associato a questo cliente.
-          </p>
+          <p className="text-muted mb-6">{t("clientiFolder.emptyQuotes")}</p>
           <Link
             href={`/nuovo-preventivo?clienteId=${cliente.id}`}
             className="btn-primary inline-block"
           >
-            Crea il primo preventivo
+            {t("preventivi.createFirst")}
           </Link>
         </div>
       ) : (
@@ -219,6 +262,8 @@ export function ClienteFolder({
                 modificaDisabled={modificaDisabled}
                 pdfGeneratingId={pdfGeneratingId}
                 whatsappSharingId={whatsappSharingId}
+                euroFormatter={euroFormatter}
+                dateFormatter={dateFormatter}
                 onApri={() => {
                   setActionError(null);
                   setViewing(preventivo);

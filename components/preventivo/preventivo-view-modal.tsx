@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useLocale, useTranslations } from "@/components/i18n/locale-provider";
 import { FirmaClienteSection } from "@/components/preventivo/firma-cliente-section";
 import {
   calcolaRiepilogoIva,
@@ -12,18 +13,9 @@ import {
   formatImportoDisplay,
   parseVociFromDescrizione,
 } from "@/lib/preventivi/voci";
+import { getDateLocale } from "@/lib/i18n/get-messages";
 import type { Preventivo } from "@/lib/types/preventivo";
 import { getPreventivoTotale } from "@/lib/types/preventivo";
-
-const euroFormatter = new Intl.NumberFormat("it-IT", {
-  style: "currency",
-  currency: "EUR",
-});
-
-const dateFormatter = new Intl.DateTimeFormat("it-IT", {
-  dateStyle: "long",
-  timeStyle: "short",
-});
 
 type PreventivoViewModalProps = {
   preventivo: Preventivo | null;
@@ -34,6 +26,28 @@ export function PreventivoViewModal({
   preventivo,
   onClose,
 }: PreventivoViewModalProps) {
+  const t = useTranslations();
+  const { locale } = useLocale();
+  const dateLocale = getDateLocale(locale);
+
+  const euroFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat(dateLocale, {
+        style: "currency",
+        currency: "EUR",
+      }),
+    [dateLocale]
+  );
+
+  const dateFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat(dateLocale, {
+        dateStyle: "long",
+        timeStyle: "short",
+      }),
+    [dateLocale]
+  );
+
   const [firmaCliente, setFirmaCliente] = useState<string | null>(
     preventivo?.firma_cliente ?? null
   );
@@ -75,7 +89,10 @@ export function PreventivoViewModal({
         <div className="flex items-start justify-between gap-4 mb-6">
           <div>
             <h2 id="preventivo-view-title" className="text-2xl font-bold">
-              Preventivo <span className="text-accent">N° {preventivo.id}</span>
+              {t("preventivo.viewTitle")}{" "}
+              <span className="text-accent">
+                {t("preventivo.viewNumber", { id: preventivo.id })}
+              </span>
             </h2>
             <p className="text-muted text-sm mt-1">{preventivo.cliente}</p>
             <p className="text-muted text-xs mt-1">
@@ -89,7 +106,7 @@ export function PreventivoViewModal({
             onClick={onClose}
             className="btn-secondary px-3 py-2 text-sm shrink-0"
           >
-            Chiudi
+            {t("common.close")}
           </button>
         </div>
 
@@ -97,11 +114,11 @@ export function PreventivoViewModal({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border text-left text-muted uppercase text-xs tracking-wide bg-slate-950/40">
-                <th className="px-4 py-3">Descrizione</th>
-                <th className="px-4 py-3 text-right">Q.tà</th>
-                <th className="px-4 py-3">U.M.</th>
-                <th className="px-4 py-3 text-right">Prezzo</th>
-                <th className="px-4 py-3 text-right">Totale</th>
+                <th className="px-4 py-3">{t("preventivo.description")}</th>
+                <th className="px-4 py-3 text-right">{t("preventivo.qty")}</th>
+                <th className="px-4 py-3">{t("preventivo.unit")}</th>
+                <th className="px-4 py-3 text-right">{t("preventivo.price")}</th>
+                <th className="px-4 py-3 text-right">{t("preventivo.total")}</th>
               </tr>
             </thead>
             <tbody>
@@ -131,19 +148,21 @@ export function PreventivoViewModal({
           {riepilogo ? (
             <>
               <div className="flex justify-between gap-4">
-                <dt className="text-muted">Imponibile</dt>
+                <dt className="text-muted">{t("preventivo.taxableAmount")}</dt>
                 <dd className="font-medium tabular-nums">
                   € {formatImportoDisplay(riepilogo.imponibile)}
                 </dd>
               </div>
               <div className="flex justify-between gap-4">
-                <dt className="text-muted">IVA ({riepilogo.aliquota}%)</dt>
+                <dt className="text-muted">
+                  {t("preventivo.vatAmount", { rate: riepilogo.aliquota })}
+                </dt>
                 <dd className="font-medium tabular-nums">
                   € {formatImportoDisplay(riepilogo.iva)}
                 </dd>
               </div>
               <div className="flex justify-between gap-4 text-base pt-2">
-                <dt className="font-semibold">Totale IVA inclusa</dt>
+                <dt className="font-semibold">{t("preventivo.totalWithVat")}</dt>
                 <dd className="font-bold text-accent tabular-nums">
                   {euroFormatter.format(totaleVisualizzato)}
                 </dd>
@@ -151,7 +170,7 @@ export function PreventivoViewModal({
             </>
           ) : (
             <div className="flex justify-between gap-4 text-base">
-              <dt className="font-semibold">Totale</dt>
+              <dt className="font-semibold">{t("preventivo.total")}</dt>
               <dd className="font-bold text-accent tabular-nums">
                 {euroFormatter.format(totaleVisualizzato)}
               </dd>

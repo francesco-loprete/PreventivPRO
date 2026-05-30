@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useState } from "react";
+import { useTranslations } from "@/components/i18n/locale-provider";
 import { createClient } from "@/lib/supabase/client";
 
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const t = useTranslations();
   const redirectTo = searchParams.get("redirectTo") ?? "/";
   const authError = searchParams.get("error");
 
@@ -15,9 +17,7 @@ export function LoginForm() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(
-    authError === "auth_callback"
-      ? "Conferma email o link di accesso non valido. Riprova."
-      : null
+    authError === "auth_callback" ? t("login.authCallbackError") : null
   );
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -46,7 +46,7 @@ export function LoginForm() {
     <form onSubmit={handleSubmit} className="space-y-5">
       <div>
         <label htmlFor="email" className="block mb-2 text-muted text-sm">
-          Email
+          {t("common.email")}
         </label>
         <input
           id="email"
@@ -56,7 +56,7 @@ export function LoginForm() {
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="nome@azienda.it"
+          placeholder={t("login.emailPlaceholder")}
           className="input-field"
           disabled={loading}
         />
@@ -64,7 +64,7 @@ export function LoginForm() {
 
       <div>
         <label htmlFor="password" className="block mb-2 text-muted text-sm">
-          Password
+          {t("login.password")}
         </label>
         <input
           id="password"
@@ -91,13 +91,13 @@ export function LoginForm() {
         disabled={loading}
         className="w-full btn-primary py-4"
       >
-        {loading ? "Accesso..." : "Accedi"}
+        {loading ? t("login.signingIn") : t("login.signIn")}
       </button>
 
       <p className="text-center text-sm text-muted">
-        Non hai un account?{" "}
+        {t("login.noAccount")}{" "}
         <Link href="/registrazione" className="text-accent hover:text-sky-400 font-medium">
-          Registrati
+          {t("login.register")}
         </Link>
       </p>
     </form>

@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useLocale, useTranslations } from "@/components/i18n/locale-provider";
 import { duplicatePreventivo } from "@/lib/preventivi/duplicate-preventivo";
 import { downloadPreventivoPdf, buildPreventivoPdfBlob } from "@/lib/pdf/generate-preventivo-pdf";
 import {
@@ -18,6 +19,8 @@ type UsePreventivoActionsOptions = {
 
 export function usePreventivoActions(options: UsePreventivoActionsOptions = {}) {
   const router = useRouter();
+  const t = useTranslations();
+  const { locale } = useLocale();
   const [duplicatingId, setDuplicatingId] = useState<number | null>(null);
   const [pdfGeneratingId, setPdfGeneratingId] = useState<number | null>(null);
   const [whatsappSharingId, setWhatsappSharingId] = useState<number | null>(null);
@@ -44,7 +47,7 @@ export function usePreventivoActions(options: UsePreventivoActionsOptions = {}) 
     try {
       await downloadPreventivoPdf(preventivo);
     } catch {
-      setActionError("Errore durante la generazione del PDF.");
+      setActionError(t("actions.pdfError"));
     } finally {
       setPdfGeneratingId(null);
     }
@@ -56,13 +59,13 @@ export function usePreventivoActions(options: UsePreventivoActionsOptions = {}) 
 
     try {
       const { blob, filename } = await buildPreventivoPdfBlob(preventivo);
-      const message = buildWhatsAppMessage(preventivo);
-      await sharePreventivoPdfViaWhatsApp(blob, filename, message);
+      const message = buildWhatsAppMessage(preventivo, locale);
+      await sharePreventivoPdfViaWhatsApp(blob, filename, message, locale);
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") {
         return;
       }
-      setActionError("Errore durante la condivisione su WhatsApp.");
+      setActionError(t("actions.whatsappError"));
     } finally {
       setWhatsappSharingId(null);
     }
@@ -79,7 +82,7 @@ export function usePreventivoActions(options: UsePreventivoActionsOptions = {}) 
 
     if (!user) {
       setDuplicatingId(null);
-      setActionError("Sessione scaduta. Accedi di nuovo.");
+      setActionError(t("common.sessionExpired"));
       return;
     }
 

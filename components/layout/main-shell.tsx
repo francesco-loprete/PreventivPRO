@@ -4,36 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BrandLogo } from "@/components/brand-logo";
 import { LogoutButton } from "@/components/auth/logout-button";
+import { useTranslations } from "@/components/i18n/locale-provider";
 
 type MainShellProps = {
   children: React.ReactNode;
   userEmail: string;
   isLoggedIn: boolean;
 };
-
-const NAV_ITEMS = [
-  { href: "/", label: "Home", match: (path: string) => path === "/" },
-  {
-    href: "/nuovo-preventivo",
-    label: "Nuovo",
-    match: (path: string) => path.startsWith("/nuovo-preventivo"),
-  },
-  {
-    href: "/preventivi",
-    label: "Lista",
-    match: (path: string) => path.startsWith("/preventivi"),
-  },
-  {
-    href: "/clienti",
-    label: "Clienti",
-    match: (path: string) => path.startsWith("/clienti"),
-  },
-  {
-    href: "/impostazioni",
-    label: "Setup",
-    match: (path: string) => path.startsWith("/impostazioni"),
-  },
-] as const;
 
 function navClassName(active: boolean, variant: "sidebar" | "bottom") {
   if (variant === "bottom") {
@@ -47,6 +24,40 @@ function navClassName(active: boolean, variant: "sidebar" | "bottom") {
 
 export function MainShell({ children, userEmail, isLoggedIn }: MainShellProps) {
   const pathname = usePathname();
+  const t = useTranslations();
+
+  const bottomNavItems = [
+    {
+      href: "/",
+      label: t("nav.home"),
+      icon: "⌂",
+      match: (path: string) => path === "/",
+    },
+    {
+      href: "/nuovo-preventivo",
+      label: t("nav.newQuote"),
+      icon: "+",
+      match: (path: string) => path.startsWith("/nuovo-preventivo"),
+    },
+    {
+      href: "/preventivi",
+      label: t("nav.list"),
+      icon: "☰",
+      match: (path: string) => path.startsWith("/preventivi"),
+    },
+    {
+      href: "/clienti",
+      label: t("nav.clients"),
+      icon: "👤",
+      match: (path: string) => path.startsWith("/clienti"),
+    },
+    {
+      href: "/impostazioni",
+      label: t("nav.setup"),
+      icon: "⚙",
+      match: (path: string) => path.startsWith("/impostazioni"),
+    },
+  ] as const;
 
   return (
     <main className="min-h-screen bg-background text-foreground flex flex-col md:flex-row">
@@ -56,7 +67,7 @@ export function MainShell({ children, userEmail, isLoggedIn }: MainShellProps) {
         </Link>
         {!isLoggedIn && (
           <Link href="/login" className="text-sm text-accent font-medium">
-            Accedi
+            {t("nav.signIn")}
           </Link>
         )}
       </header>
@@ -69,40 +80,49 @@ export function MainShell({ children, userEmail, isLoggedIn }: MainShellProps) {
         <nav className="flex flex-col gap-3 flex-1">
           <Link
             href="/"
-            className={navClassName(NAV_ITEMS[0].match(pathname), "sidebar")}
+            className={navClassName(pathname === "/", "sidebar")}
           >
-            Dashboard
+            {t("nav.dashboard")}
           </Link>
           <Link
             href="/nuovo-preventivo"
-            className={navClassName(NAV_ITEMS[1].match(pathname), "sidebar")}
+            className={navClassName(
+              pathname.startsWith("/nuovo-preventivo"),
+              "sidebar"
+            )}
           >
-            Nuovo Preventivo
+            {t("nav.newQuote")}
           </Link>
           <Link
             href="/preventivi"
-            className={navClassName(NAV_ITEMS[2].match(pathname), "sidebar")}
+            className={navClassName(pathname.startsWith("/preventivi"), "sidebar")}
           >
-            Preventivi
+            {t("nav.quotes")}
           </Link>
           <Link
             href="/clienti"
-            className={navClassName(NAV_ITEMS[3].match(pathname), "sidebar")}
+            className={navClassName(pathname.startsWith("/clienti"), "sidebar")}
           >
-            Clienti
+            {t("nav.clients")}
           </Link>
           <Link
             href="/impostazioni"
-            className={navClassName(NAV_ITEMS[4].match(pathname), "sidebar")}
+            className={navClassName(pathname.startsWith("/impostazioni"), "sidebar")}
           >
-            Impostazioni
+            {t("nav.settings")}
+          </Link>
+          <Link
+            href="/lingua"
+            className={navClassName(pathname.startsWith("/lingua"), "sidebar")}
+          >
+            🌐 {t("nav.language")}
           </Link>
         </nav>
 
         <div className="pt-6 mt-6 border-t border-border">
           {isLoggedIn ? (
             <>
-              <p className="text-xs text-muted mb-1">Sessione</p>
+              <p className="text-xs text-muted mb-1">{t("nav.session")}</p>
               <p
                 className="text-sm text-foreground/90 truncate mb-3"
                 title={userEmail}
@@ -114,10 +134,10 @@ export function MainShell({ children, userEmail, isLoggedIn }: MainShellProps) {
           ) : (
             <div className="flex flex-col gap-2 text-sm">
               <Link href="/login" className="text-accent hover:text-sky-400">
-                Accedi
+                {t("nav.signIn")}
               </Link>
               <Link href="/registrazione" className="text-muted hover:text-accent">
-                Registrati
+                {t("nav.signUp")}
               </Link>
             </div>
           )}
@@ -131,10 +151,10 @@ export function MainShell({ children, userEmail, isLoggedIn }: MainShellProps) {
 
         <nav
           className="md:hidden fixed bottom-0 inset-x-0 z-30 border-t border-border bg-card/95 backdrop-blur-md pb-safe"
-          aria-label="Navigazione principale"
+          aria-label={t("nav.mainNavAria")}
         >
           <ul className="grid grid-cols-5 gap-1 px-1 py-2">
-            {NAV_ITEMS.map(({ href, label, match }) => {
+            {bottomNavItems.map(({ href, label, icon, match }) => {
               const active = match(pathname);
               return (
                 <li key={href}>
@@ -144,15 +164,7 @@ export function MainShell({ children, userEmail, isLoggedIn }: MainShellProps) {
                     aria-current={active ? "page" : undefined}
                   >
                     <span className="text-base leading-none" aria-hidden>
-                      {label === "Home"
-                        ? "⌂"
-                        : label === "Nuovo"
-                          ? "+"
-                          : label === "Lista"
-                            ? "☰"
-                            : label === "Clienti"
-                              ? "👤"
-                              : "⚙"}
+                      {icon}
                     </span>
                     {label}
                   </Link>

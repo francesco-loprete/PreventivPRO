@@ -1,10 +1,12 @@
 import { BRAND_COMPANY } from "@/lib/branding/constants";
+import { DEFAULT_LOCALE, type AppLocale } from "@/lib/i18n/types";
 
 export type AppSettings = {
   companyName: string;
   phone: string;
   email: string;
   logoDataUrl: string | null;
+  locale: AppLocale;
 };
 
 export const SETTINGS_STORAGE_KEY = "preventivpro-settings";
@@ -15,6 +17,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   phone: BRAND_COMPANY.phone,
   email: BRAND_COMPANY.email,
   logoDataUrl: null,
+  locale: DEFAULT_LOCALE,
 };
 
 export function loadSettings(): AppSettings {
@@ -32,6 +35,10 @@ export function loadSettings(): AppSettings {
       phone: parsed.phone ?? DEFAULT_SETTINGS.phone,
       email: parsed.email ?? DEFAULT_SETTINGS.email,
       logoDataUrl: parsed.logoDataUrl ?? null,
+      locale:
+        parsed.locale === "en" || parsed.locale === "it"
+          ? parsed.locale
+          : DEFAULT_SETTINGS.locale,
     };
   } catch {
     return DEFAULT_SETTINGS;

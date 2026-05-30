@@ -4,14 +4,12 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { FormFeedback } from "@/components/ui/form-feedback";
 import { SearchInput } from "@/components/ui/search-input";
+import { useLocale, useTranslations } from "@/components/i18n/locale-provider";
+import { getDateLocale } from "@/lib/i18n/get-messages";
 import { createClient } from "@/lib/supabase/client";
 import { matchesAnyField } from "@/lib/utils/search";
 import type { Cliente } from "@/lib/types/cliente";
 import { rlsClientiErrorHint } from "@/lib/types/cliente";
-
-const dateFormatter = new Intl.DateTimeFormat("it-IT", {
-  dateStyle: "medium",
-});
 
 type ClientiTableProps = {
   clienti: Cliente[];
@@ -35,6 +33,11 @@ const emptyForm: ClienteFormData = {
 
 export function ClientiTable({ clienti: initialClienti }: ClientiTableProps) {
   const router = useRouter();
+  const t = useTranslations();
+  const { locale } = useLocale();
+  const dateFormatter = new Intl.DateTimeFormat(getDateLocale(locale), {
+    dateStyle: "medium",
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Cliente | null>(null);
@@ -98,7 +101,7 @@ export function ClientiTable({ clienti: initialClienti }: ClientiTableProps) {
 
     const nomeTrimmed = form.nome.trim();
     if (!nomeTrimmed) {
-      setError("Inserisci il nome del cliente.");
+      setError(t("clienti.nameRequiredError"));
       return;
     }
 
@@ -113,7 +116,7 @@ export function ClientiTable({ clienti: initialClienti }: ClientiTableProps) {
 
     if (!user) {
       setLoading(false);
-      setError("Sessione scaduta. Accedi di nuovo.");
+      setError(t("common.sessionExpired"));
       return;
     }
 
@@ -142,13 +145,15 @@ export function ClientiTable({ clienti: initialClienti }: ClientiTableProps) {
 
     closeForm();
     setSuccess(
-      editing ? "Cliente aggiornato con successo." : "Cliente aggiunto con successo."
+      editing ? t("clienti.clientUpdated") : t("clienti.clientAdded")
     );
     router.refresh();
   }
 
   async function handleDelete(cliente: Cliente) {
-    const confirmed = window.confirm(`Eliminare ${cliente.nome} dall'archivio?`);
+    const confirmed = window.confirm(
+      t("clienti.deleteConfirm", { name: cliente.nome })
+    );
     if (!confirmed) return;
 
     setLoading(true);
@@ -162,7 +167,7 @@ export function ClientiTable({ clienti: initialClienti }: ClientiTableProps) {
 
     if (!user) {
       setLoading(false);
-      setError("Sessione scaduta. Accedi di nuovo.");
+      setError(t("common.sessionExpired"));
       return;
     }
 
@@ -179,7 +184,7 @@ export function ClientiTable({ clienti: initialClienti }: ClientiTableProps) {
       return;
     }
 
-    setSuccess("Cliente eliminato.");
+    setSuccess(t("clienti.clientDeleted"));
     router.refresh();
   }
 
@@ -187,7 +192,10 @@ export function ClientiTable({ clienti: initialClienti }: ClientiTableProps) {
     <>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <p className="text-muted text-sm">
-          {filteredClienti.length} di {initialClienti.length} clienti
+          {t("clienti.count", {
+            shown: filteredClienti.length,
+            total: initialClienti.length,
+          })}
         </p>
         <button
           type="button"
@@ -195,7 +203,7 @@ export function ClientiTable({ clienti: initialClienti }: ClientiTableProps) {
           disabled={loading}
           className="btn-primary"
         >
-          + Nuovo cliente
+          {t("clienti.newClient")}
         </button>
       </div>
 
@@ -204,7 +212,7 @@ export function ClientiTable({ clienti: initialClienti }: ClientiTableProps) {
           id="clienti-search"
           value={searchQuery}
           onChange={setSearchQuery}
-          placeholder="Cerca cliente per nome, telefono, email..."
+          placeholder={t("clienti.searchPlaceholder")}
           disabled={loading}
         />
       </div>
@@ -217,14 +225,14 @@ export function ClientiTable({ clienti: initialClienti }: ClientiTableProps) {
 
       {!initialClienti.length ? (
         <div className="card p-12 text-center">
-          <p className="text-muted mb-6">Nessun cliente in archivio.</p>
+          <p className="text-muted mb-6">{t("clienti.emptyArchive")}</p>
           <button type="button" onClick={openCreate} className="text-accent font-semibold">
-            Aggiungi il primo cliente
+            {t("clienti.addFirstClient")}
           </button>
         </div>
       ) : filteredClienti.length === 0 ? (
         <div className="card p-12 text-center">
-          <p className="text-muted">Nessun cliente corrisponde alla ricerca.</p>
+          <p className="text-muted">{t("clienti.noSearchResults")}</p>
         </div>
       ) : (
         <div className="card overflow-hidden">
@@ -232,11 +240,11 @@ export function ClientiTable({ clienti: initialClienti }: ClientiTableProps) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-muted uppercase text-xs tracking-wide">
-                  <th className="px-4 sm:px-6 py-4">Nome</th>
-                  <th className="px-4 sm:px-6 py-4 hidden sm:table-cell">Telefono</th>
-                  <th className="px-4 sm:px-6 py-4 hidden md:table-cell">Email</th>
-                  <th className="px-4 sm:px-6 py-4 hidden lg:table-cell">Creato</th>
-                  <th className="px-4 sm:px-6 py-4 text-right">Azioni</th>
+                  <th className="px-4 sm:px-6 py-4">{t("clienti.tableName")}</th>
+                  <th className="px-4 sm:px-6 py-4 hidden sm:table-cell">{t("clienti.tablePhone")}</th>
+                  <th className="px-4 sm:px-6 py-4 hidden md:table-cell">{t("clienti.tableEmail")}</th>
+                  <th className="px-4 sm:px-6 py-4 hidden lg:table-cell">{t("clienti.tableCreated")}</th>
+                  <th className="px-4 sm:px-6 py-4 text-right">{t("clienti.tableActions")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -265,7 +273,7 @@ export function ClientiTable({ clienti: initialClienti }: ClientiTableProps) {
                           disabled={loading}
                           className="btn-ghost hover:border-accent hover:text-accent"
                         >
-                          Dettagli
+                          {t("clienti.details")}
                         </button>
                         <button
                           type="button"
@@ -273,7 +281,7 @@ export function ClientiTable({ clienti: initialClienti }: ClientiTableProps) {
                           disabled={loading}
                           className="btn-ghost hover:border-accent hover:text-accent"
                         >
-                          Modifica
+                          {t("clienti.edit")}
                         </button>
                         <button
                           type="button"
@@ -281,7 +289,7 @@ export function ClientiTable({ clienti: initialClienti }: ClientiTableProps) {
                           disabled={loading}
                           className="px-3 py-1.5 text-sm rounded-lg border border-red-900/60 text-red-400 hover:bg-red-950/80 hover:border-red-700 transition-colors disabled:opacity-50"
                         >
-                          Elimina
+                          {t("clienti.delete")}
                         </button>
                       </div>
                     </td>
@@ -305,14 +313,14 @@ export function ClientiTable({ clienti: initialClienti }: ClientiTableProps) {
             className="w-full max-w-lg max-h-[90vh] overflow-y-auto card p-6 sm:p-8 shadow-2xl shadow-black/40"
           >
             <h2 id="cliente-form-title" className="text-2xl font-bold mb-6">
-              {editing ? "Modifica" : "Nuovo"}{" "}
-              <span className="text-accent">cliente</span>
+              {editing ? t("clienti.formEdit") : t("clienti.formNew")}{" "}
+              <span className="text-accent">{t("clienti.formClient")}</span>
             </h2>
 
             <div className="space-y-4">
               <div>
                 <label htmlFor="cliente-nome" className="block mb-2 text-muted text-sm">
-                  Nome *
+                  {t("clienti.nameRequired")}
                 </label>
                 <input
                   id="cliente-nome"
@@ -328,7 +336,7 @@ export function ClientiTable({ clienti: initialClienti }: ClientiTableProps) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label htmlFor="cliente-telefono" className="block mb-2 text-muted text-sm">
-                    Telefono
+                    {t("common.phone")}
                   </label>
                   <input
                     id="cliente-telefono"
@@ -341,7 +349,7 @@ export function ClientiTable({ clienti: initialClienti }: ClientiTableProps) {
                 </div>
                 <div>
                   <label htmlFor="cliente-email" className="block mb-2 text-muted text-sm">
-                    Email
+                    {t("common.email")}
                   </label>
                   <input
                     id="cliente-email"
@@ -356,7 +364,7 @@ export function ClientiTable({ clienti: initialClienti }: ClientiTableProps) {
 
               <div>
                 <label htmlFor="cliente-indirizzo" className="block mb-2 text-muted text-sm">
-                  Indirizzo
+                  {t("common.address")}
                 </label>
                 <input
                   id="cliente-indirizzo"
@@ -370,7 +378,7 @@ export function ClientiTable({ clienti: initialClienti }: ClientiTableProps) {
 
               <div>
                 <label htmlFor="cliente-note" className="block mb-2 text-muted text-sm">
-                  Note
+                  {t("common.notes")}
                 </label>
                 <textarea
                   id="cliente-note"
@@ -386,7 +394,7 @@ export function ClientiTable({ clienti: initialClienti }: ClientiTableProps) {
             <FormFeedback
               error={error}
               loading={loading}
-              loadingMessage="Salvataggio in corso..."
+              loadingMessage={t("common.saving")}
               className="mt-4 space-y-2"
             />
 
@@ -397,14 +405,18 @@ export function ClientiTable({ clienti: initialClienti }: ClientiTableProps) {
                 disabled={loading}
                 className="btn-secondary disabled:opacity-50"
               >
-                Annulla
+                {t("common.cancel")}
               </button>
               <button
                 type="submit"
                 disabled={loading}
                 className="btn-primary disabled:opacity-50"
               >
-                {loading ? "Salvataggio..." : editing ? "Salva modifiche" : "Aggiungi cliente"}
+                {loading
+                  ? t("common.saving")
+                  : editing
+                    ? t("clienti.saveChanges")
+                    : t("clienti.addClient")}
               </button>
             </div>
           </form>

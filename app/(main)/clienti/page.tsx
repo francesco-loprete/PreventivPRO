@@ -1,5 +1,8 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
+import {
+  ClientiPageError,
+  ClientiPageHeader,
+} from "@/components/clienti/clienti-page-header";
 import { getUserClienti } from "@/lib/clienti/queries";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { ClientiTable } from "./clienti-table";
@@ -22,30 +25,12 @@ export default async function ClientiPage() {
       redirect("/login?redirectTo=/clienti");
     }
 
-    return (
-      <>
-        <h1 className="text-4xl font-bold tracking-tight mb-10">Clienti</h1>
-        <div className="card p-8 text-red-400 border-red-900/40">
-          Errore nel caricamento: {result.message}
-        </div>
-      </>
-    );
+    return <ClientiPageError message={result.message} />;
   }
 
   return (
     <>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10">
-        <div>
-          <h1 className="text-4xl font-bold tracking-tight">Clienti</h1>
-          <p className="text-muted mt-2 text-sm">
-            Archivio clienti collegato ai preventivi.
-          </p>
-        </div>
-        <Link href="/nuovo-preventivo" className="btn-secondary text-center">
-          + Nuovo preventivo
-        </Link>
-      </div>
-
+      <ClientiPageHeader />
       <ClientiTable clienti={result.clienti} />
     </>
   );

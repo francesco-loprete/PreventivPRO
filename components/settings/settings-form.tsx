@@ -2,6 +2,7 @@
 
 import { BRAND_COMPANY } from "@/lib/branding/constants";
 import { FormEvent, useEffect, useState } from "react";
+import { useTranslations } from "@/components/i18n/locale-provider";
 import { LogoUpload } from "@/components/settings/logo-upload";
 import {
   DEFAULT_SETTINGS,
@@ -11,6 +12,7 @@ import {
 } from "@/lib/settings/storage";
 
 export function SettingsForm() {
+  const t = useTranslations();
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -34,10 +36,10 @@ export function SettingsForm() {
     setSaving(true);
 
     try {
-      saveSettings(settings);
+      saveSettings({ ...settings, locale: loadSettings().locale });
       setSuccess(true);
     } catch {
-      setError("Impossibile salvare le impostazioni.");
+      setError(t("settings.saveError"));
     } finally {
       setSaving(false);
     }
@@ -46,7 +48,7 @@ export function SettingsForm() {
   if (!loaded) {
     return (
       <div className="card p-8 text-muted">
-        Caricamento impostazioni...
+        {t("settings.loading")}
       </div>
     );
   }
@@ -57,7 +59,9 @@ export function SettingsForm() {
       className="card p-8 max-w-2xl space-y-8"
     >
       <section>
-        <h2 className="text-lg font-semibold text-accent mb-4">Logo azienda</h2>
+        <h2 className="text-lg font-semibold text-accent mb-4">
+          {t("settings.logoSection")}
+        </h2>
         <LogoUpload
           value={settings.logoDataUrl}
           onChange={(logoDataUrl) => updateField("logoDataUrl", logoDataUrl)}
@@ -67,11 +71,13 @@ export function SettingsForm() {
       </section>
 
       <section className="space-y-5">
-        <h2 className="text-lg font-semibold text-accent mb-4">Dati azienda</h2>
+        <h2 className="text-lg font-semibold text-accent mb-4">
+          {t("settings.companySection")}
+        </h2>
 
         <div>
           <label htmlFor="companyName" className="block mb-2 text-muted text-sm">
-            Ragione sociale
+            {t("settings.companyName")}
           </label>
           <input
             id="companyName"
@@ -86,7 +92,7 @@ export function SettingsForm() {
 
         <div>
           <label htmlFor="phone" className="block mb-2 text-muted text-sm">
-            Telefono
+            {t("common.phone")}
           </label>
           <input
             id="phone"
@@ -101,7 +107,7 @@ export function SettingsForm() {
 
         <div>
           <label htmlFor="email" className="block mb-2 text-muted text-sm">
-            Email
+            {t("common.email")}
           </label>
           <input
             id="email"
@@ -123,7 +129,7 @@ export function SettingsForm() {
 
       {success && (
         <p className="text-accent text-sm" role="status">
-          Impostazioni salvate con successo.
+          {t("settings.saveSuccess")}
         </p>
       )}
 
@@ -132,7 +138,7 @@ export function SettingsForm() {
         disabled={saving}
         className="btn-primary px-6 py-4"
       >
-        {saving ? "Salvataggio..." : "Salva impostazioni"}
+        {saving ? t("common.saving") : t("settings.save")}
       </button>
     </form>
   );

@@ -12,6 +12,13 @@ import { SETTINGS_STORAGE_KEY } from "@/lib/settings/storage";
 import { calcolaRiepilogoIva } from "@/lib/preventivi/iva";
 import { parseVociFromDescrizione as parseVoci } from "@/lib/preventivi/voci";
 import { downloadPdfBlob } from "@/lib/pdf/share-preventivo-pdf";
+import {
+  createTranslator,
+  getDateLocale,
+  getPdfMessages,
+} from "@/lib/i18n/get-messages";
+import { loadLocaleFromStorage } from "@/lib/i18n/load-locale";
+import type { Messages } from "@/lib/i18n/types";
 import { createClient } from "@/lib/supabase/client";
 import type { Preventivo } from "@/lib/types/preventivo";
 import { getPreventivoTotale } from "@/lib/types/preventivo";
@@ -24,34 +31,61 @@ const BLUE: [number, number, number] = [37, 99, 235];
 const BLUE_SOFT: [number, number, number] = [239, 246, 255];
 const BORDER: [number, number, number] = [226, 232, 240];
 
-const euroFormatter = new Intl.NumberFormat("it-IT", {
-  style: "currency",
-  currency: "EUR",
-});
-
 const PAGE_MARGIN = 15;
 const HEADER_HEIGHT_MM = 46;
 const LOGO_MAX_HEIGHT_MM = 34;
 const LOGO_MAX_WIDTH_MM = 36;
 const FIRMA_BOX_HEIGHT_MM = 14;
 
-function formatValiditaLabel(validoFinoAl: string | null | undefined): string {
+type PdfRenderContext = {
+  labels: Messages["pdf"];
+  euroFormatter: Intl.NumberFormat;
+  dateFormatter: Intl.DateTimeFormat;
+  dateLocale: string;
+  t: ReturnType<typeof createTranslator>;
+};
+
+function createPdfRenderContext(): PdfRenderContext {
+  const locale = loadLocaleFromStorage();
+  const labels = getPdfMessages(locale);
+  const dateLocale = getDateLocale(locale);
+
+  return {
+    labels,
+    dateLocale,
+    euroFormatter: new Intl.NumberFormat(dateLocale, {
+      style: "currency",
+      currency: "EUR",
+    }),
+    dateFormatter: new Intl.DateTimeFormat(dateLocale, { dateStyle: "long" }),
+    t: createTranslator(locale),
+  };
+}
+
+function formatValiditaLabel(
+  validoFinoAl: string | null | undefined,
+  ctx: PdfRenderContext
+): string {
   const trimmed = validoFinoAl?.trim();
-  if (!trimmed) return "Scadenza non specificata";
+  if (!trimmed) return ctx.labels.expiryNotSpecified;
 
   const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(trimmed);
   if (match) {
-    return `Valido fino al: ${match[3]}/${match[2]}/${match[1]}`;
+    return ctx.t("pdf.validUntil", {
+      date: `${match[3]}/${match[2]}/${match[1]}`,
+    });
   }
 
   const parsed = new Date(trimmed);
-  if (Number.isNaN(parsed.getTime())) return "Scadenza non specificata";
+  if (Number.isNaN(parsed.getTime())) return ctx.labels.expiryNotSpecified;
 
-  return `Valido fino al: ${new Intl.DateTimeFormat("it-IT", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(parsed)}`;
+  return ctx.t("pdf.validUntil", {
+    date: new Intl.DateTimeFormat(ctx.dateLocale, {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }).format(parsed),
+  });
 }
 
 type PdfClienteDetails = {
@@ -358,7 +392,8 @@ async function drawPremiumHeader(
   doc: jsPDF,
   preventivo: Preventivo,
   pageWidth: number,
-  margin: number
+  margin: number,
+  ctx: PdfRenderContext
 ): Promise<void> {
   doc.setFillColor(...BLUE);
   doc.rect(0, 0, pageWidth, 2.5, "F");
@@ -409,22 +444,23 @@ async function drawPremiumHeader(
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
   doc.setTextColor(...MUTED);
-  doc.text("Preventivo professionale", brandTextX, logoY + LOGO_MAX_HEIGHT_MM * 0.82);
+  doc.text(ctx.labels.tagline, brandTextX, logoY + LOGO_MAX_HEIGHT_MM * 0.82);
 
   const dateLabel = preventivo.created_at
-    ? new Intl.DateTimeFormat("it-IT", { dateStyle: "long" }).format(
-        new Date(preventivo.created_at)
-      )
-    : new Intl.DateTimeFormat("it-IT", { dateStyle: "long" }).format(new Date());
+    ? ctx.dateFormatter.format(new Date(preventivo.created_at))
+    : ctx.dateFormatter.format(new Date());
 
   const metaY = logoY + LOGO_MAX_HEIGHT_MM * 0.45;
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10.5);
   doc.setTextColor(...BLUE);
-  doc.text(`Preventivo N° ${preventivo.id}`, pageWidth - margin, metaY, {
-    align: "right",
-  });
+  doc.text(
+    ctx.t("pdf.quoteNumberFull", { id: preventivo.id }),
+    pageWidth - margin,
+    metaY,
+    { align: "right" }
+  );
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
@@ -438,14 +474,15 @@ function drawClienteSection(
   clienteDetails: PdfClienteDetails | null,
   margin: number,
   contentWidth: number,
-  startY: number
+  startY: number,
+  ctx: PdfRenderContext
 ): number {
   const lines: string[] = [];
   const telefono = clienteDetails?.telefono?.trim();
   const email = clienteDetails?.email?.trim();
   const indirizzo = clienteDetails?.indirizzo?.trim();
 
-  if (telefono) lines.push(`Tel. ${telefono}`);
+  if (telefono) lines.push(`${ctx.labels.tel} ${telefono}`);
   if (email) lines.push(email);
   if (indirizzo) lines.push(indirizzo);
 
@@ -460,7 +497,7 @@ function drawClienteSection(
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7);
   doc.setTextColor(...BLUE);
-  doc.text("CLIENTE", margin + 6, startY + 6.5);
+  doc.text(ctx.labels.client, margin + 6, startY + 6.5);
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
@@ -489,7 +526,8 @@ function drawRiepilogoEconomico(
   contentWidth: number,
   pageWidth: number,
   pageHeight: number,
-  startY: number
+  startY: number,
+  ctx: PdfRenderContext
 ): number {
   let y = ensureSpace(doc, startY, 46, pageHeight);
 
@@ -501,7 +539,7 @@ function drawRiepilogoEconomico(
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
   doc.setTextColor(...BLUE);
-  doc.text("RIEPILOGO ECONOMICO", margin, y);
+  doc.text(ctx.labels.summary, margin, y);
   y += 6;
 
   const labelX = margin + contentWidth * 0.4;
@@ -512,9 +550,15 @@ function drawRiepilogoEconomico(
   doc.setTextColor(...GRAY);
 
   const summaryLines = [
-    { label: "Imponibile", value: euroFormatter.format(riepilogo.imponibile) },
-    { label: "Aliquota IVA", value: `${riepilogo.aliquota}%` },
-    { label: "Importo IVA", value: euroFormatter.format(riepilogo.iva) },
+    {
+      label: ctx.labels.taxableAmount,
+      value: ctx.euroFormatter.format(riepilogo.imponibile),
+    },
+    { label: ctx.labels.vatRate, value: `${riepilogo.aliquota}%` },
+    {
+      label: ctx.labels.vatAmount,
+      value: ctx.euroFormatter.format(riepilogo.iva),
+    },
   ];
 
   for (const line of summaryLines) {
@@ -532,13 +576,13 @@ function drawRiepilogoEconomico(
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
   doc.setTextColor(200, 200, 200);
-  doc.text("TOTALE IVA INCLUSA", margin + 7, y + 8);
+  doc.text(ctx.labels.totalWithVat, margin + 7, y + 8);
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(17);
   doc.setTextColor(...GREEN);
   doc.text(
-    euroFormatter.format(riepilogo.totaleIvaInclusa),
+    ctx.euroFormatter.format(riepilogo.totaleIvaInclusa),
     pageWidth - margin - 7,
     y + 14,
     { align: "right" }
@@ -552,14 +596,15 @@ function drawValidityNote(
   margin: number,
   pageHeight: number,
   startY: number,
-  validoFinoAl: string | null | undefined
+  validoFinoAl: string | null | undefined,
+  ctx: PdfRenderContext
 ): number {
   let y = ensureSpace(doc, startY, 8, pageHeight);
 
   doc.setFont("helvetica", "italic");
   doc.setFontSize(8);
   doc.setTextColor(...MUTED);
-  doc.text(formatValiditaLabel(validoFinoAl), margin, y);
+  doc.text(formatValiditaLabel(validoFinoAl, ctx), margin, y);
 
   return y + 5;
 }
@@ -570,14 +615,17 @@ function drawEmessoDaBlock(
   margin: number,
   contentWidth: number,
   pageHeight: number,
-  startY: number
+  startY: number,
+  ctx: PdfRenderContext
 ): number {
   const rows: string[] = [];
   if (issuer.companyName.trim()) rows.push(issuer.companyName.trim());
   if (issuer.address.trim()) rows.push(issuer.address.trim());
-  if (issuer.phone.trim()) rows.push(`Tel. ${issuer.phone.trim()}`);
+  if (issuer.phone.trim()) rows.push(`${ctx.labels.tel} ${issuer.phone.trim()}`);
   if (issuer.email.trim()) rows.push(issuer.email.trim());
-  if (issuer.partitaIva.trim()) rows.push(`P. IVA ${issuer.partitaIva.trim()}`);
+  if (issuer.partitaIva.trim()) {
+    rows.push(`${ctx.labels.vatNumber} ${issuer.partitaIva.trim()}`);
+  }
 
   if (rows.length === 0) return startY;
 
@@ -592,7 +640,7 @@ function drawEmessoDaBlock(
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7);
   doc.setTextColor(...BLUE);
-  doc.text("EMESSO DA", margin + 6, y + 6);
+  doc.text(ctx.labels.issuedBy, margin + 6, y + 6);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);
@@ -614,7 +662,8 @@ function drawAccettazioneFirma(
   contentWidth: number,
   pageWidth: number,
   pageHeight: number,
-  startY: number
+  startY: number,
+  ctx: PdfRenderContext
 ): number {
   const boxHeight = FIRMA_BOX_HEIGHT_MM;
   let y = ensureSpace(doc, startY, boxHeight + 10, pageHeight);
@@ -622,13 +671,13 @@ function drawAccettazioneFirma(
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
   doc.setTextColor(...BLUE);
-  doc.text("ACCETTAZIONE PREVENTIVO", margin, y);
+  doc.text(ctx.labels.acceptance, margin, y);
   y += 5;
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
   doc.setTextColor(...GRAY);
-  doc.text("Firma Cliente", margin, y);
+  doc.text(ctx.labels.clientSignature, margin, y);
   y += 4;
 
   doc.setDrawColor(...BORDER);
@@ -683,6 +732,7 @@ export type PreventivoPdfOutput = {
 export async function buildPreventivoPdfDocument(
   preventivo: Preventivo
 ): Promise<PreventivoPdfOutput> {
+  const ctx = createPdfRenderContext();
   const filename = `preventivo-${sanitizeFilename(preventivo.cliente)}.pdf`;
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -695,7 +745,7 @@ export async function buildPreventivoPdfDocument(
   const issuer = await getPdfIssuerDetails();
   const clienteDetails = await fetchClienteForPdf(preventivo);
 
-  await drawPremiumHeader(doc, preventivo, pageWidth, margin);
+  await drawPremiumHeader(doc, preventivo, pageWidth, margin, ctx);
 
   let y = HEADER_HEIGHT_MM + 4;
   y = drawClienteSection(
@@ -704,13 +754,14 @@ export async function buildPreventivoPdfDocument(
     clienteDetails,
     margin,
     contentWidth,
-    y
+    y,
+    ctx
   );
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
   doc.setTextColor(...BLUE);
-  doc.text("DETTAGLIO PREVENTIVO", margin, y);
+  doc.text(ctx.labels.detail, margin, y);
   y += 5;
 
   const colDesc = margin;
@@ -724,11 +775,11 @@ export async function buildPreventivoPdfDocument(
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
   doc.setTextColor(...GRAY);
-  doc.text("Descrizione", colDesc + 2, y + 4);
-  doc.text("Q.tà", colQty, y + 4);
-  doc.text("U.M.", colUnit, y + 4);
-  doc.text("Prezzo", colPrice, y + 4);
-  doc.text("Totale", colTotal, y + 4);
+  doc.text(ctx.labels.description, colDesc + 2, y + 4);
+  doc.text(ctx.labels.qty, colQty, y + 4);
+  doc.text(ctx.labels.unit, colUnit, y + 4);
+  doc.text(ctx.labels.price, colPrice, y + 4);
+  doc.text(ctx.labels.total, colTotal, y + 4);
   y += 8;
 
   doc.setFont("helvetica", "normal");
@@ -757,8 +808,8 @@ export async function buildPreventivoPdfDocument(
     doc.text(descLines, colDesc + 2, y + 3.5);
     doc.text(String(voce.quantita), colQty, y + 3.5);
     doc.text(voce.unita, colUnit, y + 3.5);
-    doc.text(euroFormatter.format(voce.prezzo), colPrice, y + 3.5);
-    doc.text(euroFormatter.format(rigaTotale), colTotal, y + 3.5);
+    doc.text(ctx.euroFormatter.format(voce.prezzo), colPrice, y + 3.5);
+    doc.text(ctx.euroFormatter.format(rigaTotale), colTotal, y + 3.5);
 
     doc.setDrawColor(...BORDER);
     doc.line(margin, y + rowHeight + 1.5, pageWidth - margin, y + rowHeight + 1.5);
@@ -773,9 +824,10 @@ export async function buildPreventivoPdfDocument(
     contentWidth,
     pageWidth,
     pageHeight,
-    y
+    y,
+    ctx
   );
-  y = drawEmessoDaBlock(doc, issuer, margin, contentWidth, pageHeight, y);
+  y = drawEmessoDaBlock(doc, issuer, margin, contentWidth, pageHeight, y, ctx);
   y = drawAccettazioneFirma(
     doc,
     preventivo.firma_cliente,
@@ -783,9 +835,10 @@ export async function buildPreventivoPdfDocument(
     contentWidth,
     pageWidth,
     pageHeight,
-    y
+    y,
+    ctx
   );
-  drawValidityNote(doc, margin, pageHeight, y, preventivo.valido_fino_al);
+  drawValidityNote(doc, margin, pageHeight, y, preventivo.valido_fino_al, ctx);
 
   return { doc, filename };
 }
