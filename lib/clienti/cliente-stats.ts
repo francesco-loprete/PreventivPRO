@@ -1,6 +1,6 @@
 import type { Cliente } from "@/lib/types/cliente";
 import type { Preventivo } from "@/lib/types/preventivo";
-import { getPreventivoTotale } from "@/lib/types/preventivo";
+import { getPreventivoTotaleVisualizzato } from "@/lib/preventivi/iva";
 
 export type ClienteStats = {
   preventiviCount: number;
@@ -42,7 +42,7 @@ export function computeClienteStats(
   return {
     preventiviCount: associated.length,
     totalePreventivi: associated.reduce(
-      (sum, p) => sum + getPreventivoTotale(p),
+      (sum, p) => sum + getPreventivoTotaleVisualizzato(p),
       0
     ),
     ultimoPreventivo: associated[0] ?? null,

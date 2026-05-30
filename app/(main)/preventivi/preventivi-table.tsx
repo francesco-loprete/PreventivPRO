@@ -27,6 +27,7 @@ import {
 } from "@/lib/preventivi/voci";
 import {
   DEFAULT_ALIQUOTA_IVA,
+  getPreventivoTotaleVisualizzato,
   normalizeAliquotaIva,
   type AliquotaIva,
 } from "@/lib/preventivi/iva";
@@ -329,7 +330,7 @@ export function PreventiviTable({
                       {preventivo.cliente}
                     </td>
                     <td className="px-6 py-4 text-accent font-semibold text-right whitespace-nowrap">
-                      {euroFormatter.format(getPreventivoTotale(preventivo))}
+                      {euroFormatter.format(getPreventivoTotaleVisualizzato(preventivo))}
                     </td>
                     <td className="px-6 py-4 text-muted whitespace-nowrap">
                       {preventivo.created_at

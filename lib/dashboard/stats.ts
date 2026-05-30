@@ -1,5 +1,5 @@
 import type { Preventivo } from "@/lib/types/preventivo";
-import { getPreventivoTotale } from "@/lib/types/preventivo";
+import { getPreventivoTotaleVisualizzato } from "@/lib/preventivi/iva";
 
 export type DashboardStats = {
   preventiviCount: number;
@@ -17,7 +17,7 @@ export function computeDashboardStats(preventivi: Preventivo[]): DashboardStats 
   return {
     preventiviCount: preventivi.length,
     totaleEmesso: preventivi.reduce(
-      (sum, p) => sum + getPreventivoTotale(p),
+      (sum, p) => sum + getPreventivoTotaleVisualizzato(p),
       0
     ),
     ultimoPreventivo: sorted[0] ?? null,

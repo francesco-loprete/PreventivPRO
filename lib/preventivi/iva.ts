@@ -39,3 +39,25 @@ export function calcolaRiepilogoIva(
     totaleIvaInclusa: imponibile + iva,
   };
 }
+
+export function hasAliquotaIvaSalvata(
+  aliquota: number | null | undefined
+): aliquota is AliquotaIva {
+  return aliquota != null && isAliquotaIva(aliquota);
+}
+
+/** Totale da mostrare in liste e riepiloghi: IVA inclusa se aliquota salvata, altrimenti imponibile. */
+export function getPreventivoTotaleVisualizzato(preventivo: {
+  prezzo?: number | null;
+  totale?: number | null;
+  aliquota_iva?: number | null;
+}): number {
+  const imponibile = preventivo.totale ?? preventivo.prezzo ?? 0;
+
+  if (!hasAliquotaIvaSalvata(preventivo.aliquota_iva)) {
+    return imponibile;
+  }
+
+  const iva = imponibile * (preventivo.aliquota_iva / 100);
+  return imponibile + iva;
+}

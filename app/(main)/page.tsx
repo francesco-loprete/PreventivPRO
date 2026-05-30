@@ -3,7 +3,7 @@ import { getUserClientiCount } from "@/lib/clienti/queries";
 import { computeDashboardStats } from "@/lib/dashboard/stats";
 import { getUserPreventivi } from "@/lib/preventivi/queries";
 import { createClient } from "@/lib/supabase/server";
-import { getPreventivoTotale } from "@/lib/types/preventivo";
+import { getPreventivoTotaleVisualizzato } from "@/lib/preventivi/iva";
 
 const euroFormatter = new Intl.NumberFormat("it-IT", {
   style: "currency",
@@ -123,7 +123,9 @@ export default async function Home() {
                 {stats.ultimoPreventivo.cliente}
               </h3>
               <p className="text-accent font-semibold mt-2">
-                {euroFormatter.format(getPreventivoTotale(stats.ultimoPreventivo))}
+                {euroFormatter.format(
+                  getPreventivoTotaleVisualizzato(stats.ultimoPreventivo)
+                )}
               </p>
               <p className="text-xs text-muted mt-2">
                 {stats.ultimoPreventivo.created_at

@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { computeClienteStats } from "@/lib/clienti/cliente-stats";
+import { getPreventivoTotaleVisualizzato } from "@/lib/preventivi/iva";
 import type { Cliente } from "@/lib/types/cliente";
 import type { Preventivo } from "@/lib/types/preventivo";
-import { getPreventivoTotale } from "@/lib/types/preventivo";
 
 const euroFormatter = new Intl.NumberFormat("it-IT", {
   style: "currency",
@@ -108,7 +108,7 @@ export function ClienteDetailModal({
                         : "—"}
                     </td>
                     <td className="px-4 py-3 text-right font-semibold text-accent">
-                      {euroFormatter.format(getPreventivoTotale(preventivo))}
+                      {euroFormatter.format(getPreventivoTotaleVisualizzato(preventivo))}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <Link
