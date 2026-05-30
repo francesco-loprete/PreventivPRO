@@ -13,6 +13,7 @@ import { resolveClienteForPreventivo } from "@/lib/clienti/resolve-cliente";
 import {
   calcolaTotaleVoci,
   createEmptyVoce,
+  formatImportoDisplay,
   validateVoci,
   vociToDescrizione,
   type Voce,
@@ -142,7 +143,9 @@ export function PreventivoForm({ clienti }: PreventivoFormProps) {
 
       <div className="mt-6 text-right mb-6">
         <p className="text-muted text-sm">Totale Generale</p>
-        <p className="text-3xl font-bold text-accent">€ {totaleGenerale}</p>
+        <p className="text-3xl font-bold text-accent">
+          € {formatImportoDisplay(totaleGenerale)}
+        </p>
       </div>
 
       <button type="submit" disabled={loading} className="btn-primary px-6 py-4">

@@ -19,6 +19,7 @@ import {
 } from "@/lib/pdf/share-preventivo-pdf";
 import {
   calcolaTotaleVoci,
+  formatImportoDisplay,
   validateVoci,
   vociFromPreventivo,
   vociToDescrizione,
@@ -435,7 +436,7 @@ export function PreventiviTable({
             <div className="mb-6 text-right">
               <p className="text-muted text-sm">Totale Generale</p>
               <p className="text-2xl sm:text-3xl font-bold text-accent">
-                € {totaleGenerale}
+                € {formatImportoDisplay(totaleGenerale)}
               </p>
             </div>
 

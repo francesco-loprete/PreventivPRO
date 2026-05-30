@@ -1,6 +1,14 @@
 "use client";
 
 import type { Voce } from "@/lib/preventivi/voci";
+import {
+  calcolaTotaleRiga,
+  formatImportoDisplay,
+  formatPrezzoDisplay,
+  formatQuantitaDisplay,
+  parsePrezzoInput,
+  parseQuantitaInput,
+} from "@/lib/preventivi/voci";
 
 const inputCompact =
   "w-full min-w-0 bg-slate-950/60 border border-border rounded-lg px-2 py-2 text-sm focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent/20";
@@ -76,16 +84,17 @@ export function VociEditor({
                 />
 
                 <input
-                  type="number"
-                  min={1}
-                  step={1}
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   placeholder="1"
-                  value={voce.quantita}
+                  value={formatQuantitaDisplay(voce.quantita)}
                   onChange={(e) =>
-                    aggiornaVoce(index, "quantita", Number(e.target.value) || 0)
+                    aggiornaVoce(index, "quantita", parseQuantitaInput(e.target.value))
                   }
                   className={`${inputCompact} text-center`}
                   disabled={disabled}
+                  aria-label="Quantità"
                 />
 
                 <input
@@ -99,24 +108,25 @@ export function VociEditor({
                 />
 
                 <input
-                  type="number"
-                  min={0}
-                  step={0.01}
+                  type="text"
+                  inputMode="decimal"
                   placeholder="100"
-                  value={voce.prezzo}
+                  value={formatPrezzoDisplay(voce.prezzo)}
                   onChange={(e) =>
-                    aggiornaVoce(index, "prezzo", Number(e.target.value) || 0)
+                    aggiornaVoce(index, "prezzo", parsePrezzoInput(e.target.value))
                   }
                   className={`${inputCompact} text-center`}
                   disabled={disabled}
+                  aria-label="Prezzo unitario"
                 />
 
                 <input
                   type="text"
-                  value={voce.quantita * voce.prezzo}
+                  value={formatImportoDisplay(calcolaTotaleRiga(voce.quantita, voce.prezzo))}
                   readOnly
                   tabIndex={-1}
                   className={`${inputCompact} text-center bg-slate-900/80 text-accent font-medium`}
+                  aria-label="Totale riga"
                 />
 
                 {voci.length > 1 ? (

@@ -14,6 +14,49 @@ export function createEmptyVoce(): Voce {
   };
 }
 
+/** Rimuove zeri iniziali e converte in intero (quantità). */
+export function parseQuantitaInput(raw: string): number {
+  const trimmed = raw.trim();
+  if (!trimmed) return 0;
+
+  const normalized = trimmed.replace(/^0+(?=\d)/, "") || "0";
+  const parsed = parseInt(normalized, 10);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+/** Rimuove zeri iniziali e converte in decimale (prezzo). */
+export function parsePrezzoInput(raw: string): number {
+  const trimmed = raw.trim().replace(",", ".");
+  if (!trimmed || trimmed === ".") return 0;
+
+  const normalized = trimmed.replace(/^0+(?=\d)/, "") || "0";
+  const parsed = parseFloat(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+export function formatQuantitaDisplay(quantita: number): string {
+  if (!Number.isFinite(quantita) || quantita <= 0) return "";
+  return String(Math.trunc(quantita));
+}
+
+export function formatPrezzoDisplay(prezzo: number): string {
+  if (!Number.isFinite(prezzo) || prezzo <= 0) return "";
+  return String(prezzo);
+}
+
+export function formatImportoDisplay(importo: number): string {
+  if (!Number.isFinite(importo)) return "0";
+  return importo.toLocaleString("it-IT", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+    useGrouping: false,
+  });
+}
+
+export function calcolaTotaleRiga(quantita: number, prezzo: number): number {
+  return quantita * prezzo;
+}
+
 export function parseVociFromDescrizione(
   descrizione: string | null | undefined
 ): Voce[] {
