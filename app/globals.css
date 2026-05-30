@@ -75,4 +75,19 @@ body {
     min-height: 100vh;
     min-height: 100dvh;
   }
+
+  /* Voci preventivo: card mobile senza tabella orizzontale */
+  @media (max-width: 767px) {
+    .voci-editor-root {
+      overflow-x: hidden;
+      max-width: 100%;
+    }
+
+    .voci-editor-root .voce-fields-grid {
+      display: grid !important;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 0.75rem;
+      width: 100%;
+    }
+  }
 }

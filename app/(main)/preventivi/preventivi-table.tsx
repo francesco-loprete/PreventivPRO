@@ -406,7 +406,7 @@ export function PreventiviTable({
         >
           <form
             onSubmit={handleUpdate}
-            className="w-full max-w-4xl max-h-[90vh] overflow-y-auto card p-6 sm:p-8 shadow-2xl shadow-black/40"
+            className="w-full max-w-4xl max-h-[90vh] overflow-y-auto overflow-x-hidden card p-4 sm:p-6 md:p-8 shadow-2xl shadow-black/40 min-w-0"
           >
             <h2 id="edit-title" className="text-2xl font-bold mb-6">
               Modifica <span className="text-accent">preventivo</span>

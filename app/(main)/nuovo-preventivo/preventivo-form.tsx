@@ -107,7 +107,7 @@ export function PreventivoForm({ clienti }: PreventivoFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="card p-8 max-w-4xl">
+    <form onSubmit={handleSubmit} className="card p-4 sm:p-6 md:p-8 max-w-4xl w-full min-w-0 overflow-x-hidden">
       <div className="mb-6">
         <label className="block mb-2 text-muted text-sm">Cliente</label>
         <ClientePicker
