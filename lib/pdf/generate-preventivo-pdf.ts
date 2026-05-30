@@ -225,6 +225,56 @@ function drawLogoFallback(doc: jsPDF, x: number, y: number) {
   doc.text(BRAND_NAME, x + 18, y + 10.5);
 }
 
+function drawPdfFirmaCliente(
+  doc: jsPDF,
+  firmaDataUrl: string | null | undefined,
+  margin: number,
+  pageWidth: number,
+  pageHeight: number,
+  startY: number
+): number {
+  let y = startY;
+  const contentWidth = pageWidth - margin * 2;
+  const boxHeight = 32;
+
+  if (y > pageHeight - boxHeight - 20) {
+    doc.addPage();
+    y = 20;
+  }
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(...GRAY);
+  doc.text("Firma Cliente", margin, y);
+  y += 6;
+
+  doc.setDrawColor(210, 210, 210);
+  doc.setLineWidth(0.3);
+  doc.rect(margin, y, contentWidth, boxHeight);
+
+  if (firmaDataUrl?.startsWith("data:image")) {
+    try {
+      const format = firmaDataUrl.startsWith("data:image/jpeg") ? "JPEG" : "PNG";
+      const imgWidth = 75;
+      const imgHeight = 24;
+      doc.addImage(
+        firmaDataUrl,
+        format,
+        margin + 4,
+        y + 4,
+        imgWidth,
+        imgHeight,
+        undefined,
+        "FAST"
+      );
+    } catch {
+      // Firma non renderizzabile: lascia solo il riquadro.
+    }
+  }
+
+  return y + boxHeight + 8;
+}
+
 function drawPdfCompanyFooter(
   doc: jsPDF,
   margin: number,
@@ -475,6 +525,15 @@ export async function buildPreventivoPdfDocument(
   );
 
   y += 40;
+
+  y = drawPdfFirmaCliente(
+    doc,
+    preventivo.firma_cliente,
+    margin,
+    pageWidth,
+    pageHeight,
+    y
+  );
 
   drawPdfCompanyFooter(doc, margin, y, pageWidth);
 

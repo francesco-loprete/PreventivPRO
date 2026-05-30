@@ -7,6 +7,7 @@ import {
   createClientePickerState,
   type ClientePickerState,
 } from "@/components/clienti/cliente-picker";
+import { FirmaClienteSection } from "@/components/preventivo/firma-cliente-section";
 import { PreventivoTotali } from "@/components/preventivo/preventivo-totali";
 import { VociEditor } from "@/components/preventivo/voci-editor";
 import { FormFeedback } from "@/components/ui/form-feedback";
@@ -175,6 +176,12 @@ export function PreventivoEditModal({
           disabled={loading}
           idPrefix={idPrefix}
           totaleGeneraleClassName="text-2xl sm:text-3xl"
+        />
+
+        <FirmaClienteSection
+          preventivoId={preventivo.id}
+          firmaCliente={preventivo.firma_cliente}
+          idPrefix={`${idPrefix}-firma`}
         />
 
         <FormFeedback

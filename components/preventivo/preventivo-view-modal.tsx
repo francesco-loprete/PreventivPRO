@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { FirmaClienteSection } from "@/components/preventivo/firma-cliente-section";
 import {
   calcolaRiepilogoIva,
   getPreventivoTotaleVisualizzato,
@@ -32,6 +34,14 @@ export function PreventivoViewModal({
   preventivo,
   onClose,
 }: PreventivoViewModalProps) {
+  const [firmaCliente, setFirmaCliente] = useState<string | null>(
+    preventivo?.firma_cliente ?? null
+  );
+
+  useEffect(() => {
+    setFirmaCliente(preventivo?.firma_cliente ?? null);
+  }, [preventivo?.id, preventivo?.firma_cliente]);
+
   if (!preventivo) return null;
 
   const imponibile = getPreventivoTotale(preventivo);
@@ -148,6 +158,13 @@ export function PreventivoViewModal({
             </div>
           )}
         </dl>
+
+        <FirmaClienteSection
+          preventivoId={preventivo.id}
+          firmaCliente={firmaCliente}
+          idPrefix="view-firma"
+          onSaved={setFirmaCliente}
+        />
       </div>
     </div>
   );

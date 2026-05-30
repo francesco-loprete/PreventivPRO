@@ -5,6 +5,7 @@ export type Preventivo = {
   descrizione?: string | null;
   prezzo?: number | null;
   aliquota_iva?: number | null;
+  firma_cliente?: string | null;
   totale?: number | null;
   created_at?: string | null;
   user_id: string;
