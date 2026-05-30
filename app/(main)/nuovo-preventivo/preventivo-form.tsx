@@ -29,12 +29,16 @@ import { rlsErrorHint } from "@/lib/types/preventivo";
 
 type PreventivoFormProps = {
   clienti: Cliente[];
+  initialClienteId?: number;
 };
 
-export function PreventivoForm({ clienti }: PreventivoFormProps) {
+export function PreventivoForm({
+  clienti,
+  initialClienteId,
+}: PreventivoFormProps) {
   const router = useRouter();
   const [clientePicker, setClientePicker] = useState<ClientePickerState>(() =>
-    createClientePickerState(clienti)
+    createClientePickerState(clienti, { clienteId: initialClienteId })
   );
   const [voci, setVoci] = useState<Voce[]>([createEmptyVoce()]);
   const [aliquotaIva, setAliquotaIva] = useState<AliquotaIva>(DEFAULT_ALIQUOTA_IVA);
@@ -98,7 +102,9 @@ export function PreventivoForm({ clienti }: PreventivoFormProps) {
       }
 
       setSuccess(true);
-      setClientePicker(createClientePickerState(clienti));
+      setClientePicker(
+        createClientePickerState(clienti, { clienteId: initialClienteId })
+      );
       setVoci([createEmptyVoce()]);
       setAliquotaIva(DEFAULT_ALIQUOTA_IVA);
       router.refresh();

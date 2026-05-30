@@ -2,14 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { ClienteDetailModal } from "@/components/clienti/cliente-detail-modal";
 import { FormFeedback } from "@/components/ui/form-feedback";
 import { SearchInput } from "@/components/ui/search-input";
 import { createClient } from "@/lib/supabase/client";
 import { matchesAnyField } from "@/lib/utils/search";
 import type { Cliente } from "@/lib/types/cliente";
 import { rlsClientiErrorHint } from "@/lib/types/cliente";
-import type { Preventivo } from "@/lib/types/preventivo";
 
 const dateFormatter = new Intl.DateTimeFormat("it-IT", {
   dateStyle: "medium",
@@ -17,7 +15,6 @@ const dateFormatter = new Intl.DateTimeFormat("it-IT", {
 
 type ClientiTableProps = {
   clienti: Cliente[];
-  preventivi: Preventivo[];
 };
 
 type ClienteFormData = {
@@ -36,14 +33,10 @@ const emptyForm: ClienteFormData = {
   note: "",
 };
 
-export function ClientiTable({
-  clienti: initialClienti,
-  preventivi,
-}: ClientiTableProps) {
+export function ClientiTable({ clienti: initialClienti }: ClientiTableProps) {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [showForm, setShowForm] = useState(false);
-  const [detailCliente, setDetailCliente] = useState<Cliente | null>(null);
   const [editing, setEditing] = useState<Cliente | null>(null);
   const [form, setForm] = useState<ClienteFormData>(emptyForm);
   const [loading, setLoading] = useState(false);
@@ -217,8 +210,8 @@ export function ClientiTable({
       </div>
 
       <FormFeedback
-        error={!showForm && !detailCliente ? error : null}
-        success={!showForm && !detailCliente ? success : null}
+        error={!showForm ? error : null}
+        success={!showForm ? success : null}
         className="mb-4 space-y-2"
       />
 
@@ -268,7 +261,7 @@ export function ClientiTable({
                       <div className="flex items-center justify-end gap-2 flex-wrap">
                         <button
                           type="button"
-                          onClick={() => setDetailCliente(cliente)}
+                          onClick={() => router.push(`/clienti/${cliente.id}`)}
                           disabled={loading}
                           className="btn-ghost hover:border-accent hover:text-accent"
                         >
@@ -416,14 +409,6 @@ export function ClientiTable({
             </div>
           </form>
         </div>
-      )}
-
-      {detailCliente && (
-        <ClienteDetailModal
-          cliente={detailCliente}
-          preventivi={preventivi}
-          onClose={() => setDetailCliente(null)}
-        />
       )}
     </>
   );

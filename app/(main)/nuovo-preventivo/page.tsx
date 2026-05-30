@@ -5,7 +5,11 @@ import { PreventivoForm } from "./preventivo-form";
 
 export const dynamic = "force-dynamic";
 
-export default async function NuovoPreventivo() {
+type NuovoPreventivoProps = {
+  searchParams: Promise<{ clienteId?: string }>;
+};
+
+export default async function NuovoPreventivo({ searchParams }: NuovoPreventivoProps) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -15,6 +19,15 @@ export default async function NuovoPreventivo() {
     redirect("/login?redirectTo=/nuovo-preventivo");
   }
 
+  const { clienteId: clienteIdParam } = await searchParams;
+  const parsedClienteId = clienteIdParam ? Number(clienteIdParam) : undefined;
+  const initialClienteId =
+    parsedClienteId !== undefined &&
+    Number.isFinite(parsedClienteId) &&
+    parsedClienteId > 0
+      ? parsedClienteId
+      : undefined;
+
   const clientiResult = await getUserClienti();
   const clienti = clientiResult.ok ? clientiResult.clienti : [];
 
@@ -23,7 +36,7 @@ export default async function NuovoPreventivo() {
       <h1 className="text-4xl font-bold mb-10 tracking-tight">
         Nuovo <span className="text-accent">Preventivo</span>
       </h1>
-      <PreventivoForm clienti={clienti} />
+      <PreventivoForm clienti={clienti} initialClienteId={initialClienteId} />
     </>
   );
 }

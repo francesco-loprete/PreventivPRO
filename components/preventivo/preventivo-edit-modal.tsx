@@ -1,0 +1,207 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { FormEvent, useEffect, useState } from "react";
+import {
+  ClientePicker,
+  createClientePickerState,
+  type ClientePickerState,
+} from "@/components/clienti/cliente-picker";
+import { PreventivoTotali } from "@/components/preventivo/preventivo-totali";
+import { VociEditor } from "@/components/preventivo/voci-editor";
+import { FormFeedback } from "@/components/ui/form-feedback";
+import { resolveClienteForPreventivo } from "@/lib/clienti/resolve-cliente";
+import {
+  DEFAULT_ALIQUOTA_IVA,
+  normalizeAliquotaIva,
+  type AliquotaIva,
+} from "@/lib/preventivi/iva";
+import {
+  calcolaTotaleVoci,
+  validateVoci,
+  vociFromPreventivo,
+  vociToDescrizione,
+  type Voce,
+} from "@/lib/preventivi/voci";
+import { createClient } from "@/lib/supabase/client";
+import type { Cliente } from "@/lib/types/cliente";
+import type { Preventivo } from "@/lib/types/preventivo";
+import { getPreventivoTotale, rlsErrorHint } from "@/lib/types/preventivo";
+
+type PreventivoEditModalProps = {
+  preventivo: Preventivo | null;
+  clienti: Cliente[];
+  onClose: () => void;
+  onSuccess?: (message: string) => void;
+  idPrefix?: string;
+};
+
+export function PreventivoEditModal({
+  preventivo,
+  clienti,
+  onClose,
+  onSuccess,
+  idPrefix = "edit",
+}: PreventivoEditModalProps) {
+  const router = useRouter();
+  const [clientePicker, setClientePicker] = useState<ClientePickerState>(() =>
+    createClientePickerState(clienti)
+  );
+  const [voci, setVoci] = useState<Voce[]>([]);
+  const [aliquotaIva, setAliquotaIva] = useState<AliquotaIva>(DEFAULT_ALIQUOTA_IVA);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const totaleGenerale = calcolaTotaleVoci(voci);
+
+  useEffect(() => {
+    if (!preventivo) return;
+
+    setError(null);
+    setClientePicker(
+      createClientePickerState(clienti, {
+        clienteId: preventivo.cliente_id,
+        nomeFallback: preventivo.cliente,
+      })
+    );
+    setVoci(
+      vociFromPreventivo(preventivo.descrizione, getPreventivoTotale(preventivo))
+    );
+    setAliquotaIva(normalizeAliquotaIva(preventivo.aliquota_iva));
+  }, [preventivo, clienti]);
+
+  async function handleUpdate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!preventivo) return;
+
+    const validation = validateVoci(voci);
+    if (!validation.ok) {
+      setError(validation.message);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      setLoading(false);
+      setError("Sessione scaduta. Accedi di nuovo.");
+      return;
+    }
+
+    const resolved = await resolveClienteForPreventivo(
+      supabase,
+      user.id,
+      clientePicker
+    );
+
+    if (!resolved.ok) {
+      setLoading(false);
+      setError(resolved.message);
+      return;
+    }
+
+    const { error: updateError } = await supabase
+      .from("preventivi")
+      .update({
+        cliente: resolved.clienteNome,
+        cliente_id: resolved.clienteId,
+        descrizione: vociToDescrizione(validation.voci),
+        prezzo: validation.totale,
+        aliquota_iva: aliquotaIva,
+      })
+      .eq("id", preventivo.id)
+      .eq("user_id", user.id);
+
+    setLoading(false);
+
+    if (updateError) {
+      setError(updateError.message + rlsErrorHint(updateError.code));
+      return;
+    }
+
+    onClose();
+    onSuccess?.("Preventivo aggiornato con successo.");
+    router.refresh();
+  }
+
+  if (!preventivo) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={`${idPrefix}-edit-title`}
+    >
+      <form
+        onSubmit={handleUpdate}
+        className="w-full max-w-4xl max-h-[90vh] overflow-y-auto overflow-x-hidden card p-4 sm:p-6 md:p-8 shadow-2xl shadow-black/40 min-w-0"
+      >
+        <h2 id={`${idPrefix}-edit-title`} className="text-2xl font-bold mb-6">
+          Modifica <span className="text-accent">preventivo</span>
+        </h2>
+
+        <div className="mb-6">
+          <label className="block mb-2 text-muted text-sm">Cliente</label>
+          <ClientePicker
+            clienti={clienti}
+            value={clientePicker}
+            onChange={setClientePicker}
+            disabled={loading}
+            idPrefix={idPrefix}
+          />
+        </div>
+
+        <div className="mb-6">
+          <label className="block mb-2 text-muted text-sm">Voci Preventivo</label>
+          <VociEditor
+            voci={voci}
+            onChange={setVoci}
+            disabled={loading}
+            idPrefix={idPrefix}
+          />
+        </div>
+
+        <PreventivoTotali
+          imponibile={totaleGenerale}
+          aliquotaIva={aliquotaIva}
+          onAliquotaIvaChange={setAliquotaIva}
+          disabled={loading}
+          idPrefix={idPrefix}
+          totaleGeneraleClassName="text-2xl sm:text-3xl"
+        />
+
+        <FormFeedback
+          error={error}
+          loading={loading}
+          loadingMessage="Salvataggio in corso..."
+          className="mb-4 space-y-2"
+        />
+
+        <div className="flex flex-col-reverse sm:flex-row gap-3 sm:justify-end">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={loading}
+            className="btn-secondary disabled:opacity-50"
+          >
+            Annulla
+          </button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="btn-primary disabled:opacity-50"
+          >
+            {loading ? "Salvataggio..." : "Salva modifiche"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
