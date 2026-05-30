@@ -3,31 +3,54 @@ import {
   BRAND_DARK_RGB,
   BRAND_GREEN_RGB,
   BRAND_NAME,
-  BRAND_PDF,
 } from "@/lib/branding/constants";
 import {
-  getCompanyContact,
   getPdfLogoPaths,
   getStoredLogoDataUrl,
 } from "@/lib/branding/settings";
+import { SETTINGS_STORAGE_KEY } from "@/lib/settings/storage";
 import { calcolaRiepilogoIva } from "@/lib/preventivi/iva";
 import { parseVociFromDescrizione as parseVoci } from "@/lib/preventivi/voci";
 import { downloadPdfBlob } from "@/lib/pdf/share-preventivo-pdf";
+import { createClient } from "@/lib/supabase/client";
 import type { Preventivo } from "@/lib/types/preventivo";
 import { getPreventivoTotale } from "@/lib/types/preventivo";
 
-const GREEN: [number, number, number] = [...BRAND_GREEN_RGB];
 const DARK: [number, number, number] = [...BRAND_DARK_RGB];
-const GRAY: [number, number, number] = [107, 114, 128];
-const LIGHT: [number, number, number] = [245, 245, 245];
+const GREEN: [number, number, number] = [...BRAND_GREEN_RGB];
+const GRAY: [number, number, number] = [100, 116, 139];
+const MUTED: [number, number, number] = [148, 163, 184];
+const BLUE: [number, number, number] = [37, 99, 235];
+const BLUE_SOFT: [number, number, number] = [239, 246, 255];
+const BORDER: [number, number, number] = [226, 232, 240];
 
 const euroFormatter = new Intl.NumberFormat("it-IT", {
   style: "currency",
   currency: "EUR",
 });
 
-const HEADER_HEIGHT_MM = 48;
-const LOGO_MAX_WIDTH_MM = 110;
+const PAGE_MARGIN = 15;
+const HEADER_HEIGHT_MM = 46;
+const LOGO_MAX_HEIGHT_MM = 34;
+const LOGO_MAX_WIDTH_MM = 36;
+const FIRMA_BOX_HEIGHT_MM = 14;
+const VALIDITY_NOTE =
+  "Preventivo valido 30 giorni dalla data di emissione.";
+
+type PdfClienteDetails = {
+  nome: string;
+  telefono?: string | null;
+  email?: string | null;
+  indirizzo?: string | null;
+};
+
+type PdfIssuerDetails = {
+  companyName: string;
+  phone: string;
+  email: string;
+  address: string;
+  partitaIva: string;
+};
 
 function pxToMm(px: number): number {
   return px * 0.264583333;
@@ -123,38 +146,6 @@ async function prepareLogoForPdf(
   return { dataUrl, width: natural.width, height: natural.height };
 }
 
-async function drawHeaderLogo(
-  doc: jsPDF,
-  logoDataUrl: string,
-  margin: number,
-  maxWidthMm: number
-): Promise<void> {
-  const prepared = await prepareLogoForPdf(logoDataUrl);
-  const maxHeightMm = pxToMm(80);
-
-  const { width, height } = fitContain(
-    prepared.width,
-    prepared.height,
-    maxWidthMm,
-    maxHeightMm
-  );
-
-  const x = margin;
-  const y = (HEADER_HEIGHT_MM - height) / 2;
-  const format = getImageFormat(prepared.dataUrl);
-
-  doc.addImage(
-    prepared.dataUrl,
-    format,
-    x,
-    y,
-    width,
-    height,
-    undefined,
-    "NONE"
-  );
-}
-
 async function loadLogoDataUrl(): Promise<string | null> {
   const storedLogo = getStoredLogoDataUrl();
   if (storedLogo) return storedLogo;
@@ -213,115 +204,447 @@ async function loadLogoDataUrl(): Promise<string | null> {
   return null;
 }
 
-function drawLogoFallback(doc: jsPDF, x: number, y: number) {
-  doc.setFillColor(...GREEN);
-  doc.roundedRect(x, y, 14, 14, 3, 3, "F");
+function drawLogoFallback(doc: jsPDF, x: number, y: number, size: number) {
+  doc.setFillColor(...BLUE);
+  doc.roundedRect(x, y, size, size, 4, 4, "F");
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.setTextColor(...DARK);
-  doc.text("P", x + 4.2, y + 10);
-  doc.setFontSize(18);
-  doc.setTextColor(...GREEN);
-  doc.text(BRAND_NAME, x + 18, y + 10.5);
+  doc.setFontSize(size * 0.55);
+  doc.setTextColor(255, 255, 255);
+  doc.text("P", x + size * 0.28, y + size * 0.72);
 }
 
-function drawPdfFirmaCliente(
+function readStoredCompanyFields(): PdfIssuerDetails {
+  const empty: PdfIssuerDetails = {
+    companyName: "",
+    phone: "",
+    email: "",
+    address: "",
+    partitaIva: "",
+  };
+
+  if (typeof window === "undefined") return empty;
+
+  try {
+    const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
+    if (!raw) return empty;
+
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const address =
+      (typeof parsed.address === "string" ? parsed.address.trim() : "") ||
+      (typeof parsed.indirizzo === "string" ? parsed.indirizzo.trim() : "");
+    const partitaIva =
+      (typeof parsed.partitaIva === "string" ? parsed.partitaIva.trim() : "") ||
+      (typeof parsed.partita_iva === "string" ? parsed.partita_iva.trim() : "");
+
+    return {
+      companyName:
+        typeof parsed.companyName === "string" ? parsed.companyName.trim() : "",
+      phone: typeof parsed.phone === "string" ? parsed.phone.trim() : "",
+      email: typeof parsed.email === "string" ? parsed.email.trim() : "",
+      address,
+      partitaIva,
+    };
+  } catch {
+    return empty;
+  }
+}
+
+function getUserDisplayName(user: {
+  email?: string | null;
+  user_metadata?: Record<string, unknown>;
+}): string {
+  const meta = user.user_metadata ?? {};
+
+  for (const key of ["full_name", "name"] as const) {
+    const value = meta[key];
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  const emailLocal = user.email?.split("@")[0]?.trim();
+  return emailLocal ?? "";
+}
+
+async function fetchAuthUserForPdf() {
+  try {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    return user;
+  } catch {
+    return null;
+  }
+}
+
+async function getPdfIssuerDetails(): Promise<PdfIssuerDetails> {
+  const stored = readStoredCompanyFields();
+  let companyName = stored.companyName;
+  let phone = stored.phone;
+  let email = stored.email;
+
+  if (!companyName || !email) {
+    const user = await fetchAuthUserForPdf();
+    if (user) {
+      if (!companyName) {
+        companyName = getUserDisplayName(user);
+      }
+      if (!email) {
+        email = user.email?.trim() ?? "";
+      }
+    }
+  }
+
+  return {
+    companyName,
+    phone,
+    email,
+    address: stored.address,
+    partitaIva: stored.partitaIva,
+  };
+}
+
+async function fetchClienteForPdf(
+  preventivo: Preventivo
+): Promise<PdfClienteDetails | null> {
+  if (!preventivo.cliente_id) return null;
+
+  try {
+    const supabase = createClient();
+    const { data } = await supabase
+      .from("clienti")
+      .select("nome, telefono, email, indirizzo")
+      .eq("id", preventivo.cliente_id)
+      .maybeSingle();
+
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+function ensureSpace(
   doc: jsPDF,
-  firmaDataUrl: string | null | undefined,
+  y: number,
+  needed: number,
+  pageHeight: number
+): number {
+  if (y + needed > pageHeight - PAGE_MARGIN) {
+    doc.addPage();
+    return PAGE_MARGIN;
+  }
+  return y;
+}
+
+async function drawPremiumHeader(
+  doc: jsPDF,
+  preventivo: Preventivo,
+  pageWidth: number,
+  margin: number
+): Promise<void> {
+  doc.setFillColor(...BLUE);
+  doc.rect(0, 0, pageWidth, 2.5, "F");
+  doc.setFillColor(255, 255, 255);
+  doc.rect(0, 2.5, pageWidth, HEADER_HEIGHT_MM - 2.5, "F");
+  doc.setDrawColor(...BORDER);
+  doc.setLineWidth(0.35);
+  doc.line(margin, HEADER_HEIGHT_MM, pageWidth - margin, HEADER_HEIGHT_MM);
+
+  const logoY = 2.5 + (HEADER_HEIGHT_MM - 2.5 - LOGO_MAX_HEIGHT_MM) / 2;
+  let brandTextX = margin;
+
+  const logo = await loadLogoDataUrl();
+  if (logo) {
+    try {
+      const prepared = await prepareLogoForPdf(logo);
+      const { width, height } = fitContain(
+        prepared.width,
+        prepared.height,
+        LOGO_MAX_WIDTH_MM,
+        LOGO_MAX_HEIGHT_MM
+      );
+      doc.addImage(
+        prepared.dataUrl,
+        getImageFormat(prepared.dataUrl),
+        margin,
+        logoY + (LOGO_MAX_HEIGHT_MM - height) / 2,
+        width,
+        height,
+        undefined,
+        "NONE"
+      );
+      brandTextX = margin + width + 6;
+    } catch {
+      drawLogoFallback(doc, margin, logoY, LOGO_MAX_HEIGHT_MM);
+      brandTextX = margin + LOGO_MAX_HEIGHT_MM + 6;
+    }
+  } else {
+    drawLogoFallback(doc, margin, logoY, LOGO_MAX_HEIGHT_MM);
+    brandTextX = margin + LOGO_MAX_HEIGHT_MM + 6;
+  }
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(22);
+  doc.setTextColor(...DARK);
+  doc.text(BRAND_NAME, brandTextX, logoY + LOGO_MAX_HEIGHT_MM * 0.58);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  doc.setTextColor(...MUTED);
+  doc.text("Preventivo professionale", brandTextX, logoY + LOGO_MAX_HEIGHT_MM * 0.82);
+
+  const dateLabel = preventivo.created_at
+    ? new Intl.DateTimeFormat("it-IT", { dateStyle: "long" }).format(
+        new Date(preventivo.created_at)
+      )
+    : new Intl.DateTimeFormat("it-IT", { dateStyle: "long" }).format(new Date());
+
+  const metaY = logoY + LOGO_MAX_HEIGHT_MM * 0.45;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10.5);
+  doc.setTextColor(...BLUE);
+  doc.text(`Preventivo N° ${preventivo.id}`, pageWidth - margin, metaY, {
+    align: "right",
+  });
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(...GRAY);
+  doc.text(dateLabel, pageWidth - margin, metaY + 6, { align: "right" });
+}
+
+function drawClienteSection(
+  doc: jsPDF,
+  clienteNome: string,
+  clienteDetails: PdfClienteDetails | null,
   margin: number,
+  contentWidth: number,
+  startY: number
+): number {
+  const lines: string[] = [];
+  const telefono = clienteDetails?.telefono?.trim();
+  const email = clienteDetails?.email?.trim();
+  const indirizzo = clienteDetails?.indirizzo?.trim();
+
+  if (telefono) lines.push(`Tel. ${telefono}`);
+  if (email) lines.push(email);
+  if (indirizzo) lines.push(indirizzo);
+
+  const hasDetails = lines.length > 0;
+  const boxHeight = hasDetails ? 13 + lines.length * 4.2 : 11;
+
+  doc.setFillColor(...BLUE_SOFT);
+  doc.roundedRect(margin, startY, contentWidth, boxHeight, 2.5, 2.5, "F");
+  doc.setDrawColor(...BORDER);
+  doc.roundedRect(margin, startY, contentWidth, boxHeight, 2.5, 2.5, "S");
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7);
+  doc.setTextColor(...BLUE);
+  doc.text("CLIENTE", margin + 6, startY + 6.5);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.setTextColor(...DARK);
+  doc.text(clienteNome, margin + 6, startY + (hasDetails ? 11.5 : 8.5));
+
+  if (hasDetails) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...GRAY);
+
+    let lineY = startY + 15.5;
+    for (const line of lines) {
+      doc.text(line, margin + 6, lineY);
+      lineY += 4.2;
+    }
+  }
+
+  return startY + boxHeight + 6;
+}
+
+function drawRiepilogoEconomico(
+  doc: jsPDF,
+  riepilogo: ReturnType<typeof calcolaRiepilogoIva>,
+  margin: number,
+  contentWidth: number,
   pageWidth: number,
   pageHeight: number,
   startY: number
 ): number {
-  let y = startY;
-  const contentWidth = pageWidth - margin * 2;
-  const boxHeight = 32;
+  let y = ensureSpace(doc, startY, 46, pageHeight);
 
-  if (y > pageHeight - boxHeight - 20) {
-    doc.addPage();
-    y = 20;
-  }
+  doc.setDrawColor(...BORDER);
+  doc.setLineWidth(0.35);
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 5;
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.setTextColor(...GRAY);
-  doc.text("Firma Cliente", margin, y);
+  doc.setFontSize(7.5);
+  doc.setTextColor(...BLUE);
+  doc.text("RIEPILOGO ECONOMICO", margin, y);
   y += 6;
 
-  doc.setDrawColor(210, 210, 210);
-  doc.setLineWidth(0.3);
-  doc.rect(margin, y, contentWidth, boxHeight);
+  const labelX = margin + contentWidth * 0.4;
+  const valueX = pageWidth - margin;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
+  doc.setTextColor(...GRAY);
+
+  const summaryLines = [
+    { label: "Imponibile", value: euroFormatter.format(riepilogo.imponibile) },
+    { label: "Aliquota IVA", value: `${riepilogo.aliquota}%` },
+    { label: "Importo IVA", value: euroFormatter.format(riepilogo.iva) },
+  ];
+
+  for (const line of summaryLines) {
+    doc.text(line.label, labelX, y);
+    doc.text(line.value, valueX, y, { align: "right" });
+    y += 5;
+  }
+
+  y += 3;
+  y = ensureSpace(doc, y, 20, pageHeight);
+
+  doc.setFillColor(...DARK);
+  doc.roundedRect(margin, y, contentWidth, 20, 2.5, 2.5, "F");
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(200, 200, 200);
+  doc.text("TOTALE IVA INCLUSA", margin + 7, y + 8);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(17);
+  doc.setTextColor(...GREEN);
+  doc.text(
+    euroFormatter.format(riepilogo.totaleIvaInclusa),
+    pageWidth - margin - 7,
+    y + 14,
+    { align: "right" }
+  );
+
+  return y + 24;
+}
+
+function drawValidityNote(
+  doc: jsPDF,
+  margin: number,
+  pageHeight: number,
+  startY: number
+): number {
+  let y = ensureSpace(doc, startY, 8, pageHeight);
+
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(8);
+  doc.setTextColor(...MUTED);
+  doc.text(VALIDITY_NOTE, margin, y);
+
+  return y + 5;
+}
+
+function drawEmessoDaBlock(
+  doc: jsPDF,
+  issuer: PdfIssuerDetails,
+  margin: number,
+  contentWidth: number,
+  pageHeight: number,
+  startY: number
+): number {
+  const rows: string[] = [];
+  if (issuer.companyName.trim()) rows.push(issuer.companyName.trim());
+  if (issuer.address.trim()) rows.push(issuer.address.trim());
+  if (issuer.phone.trim()) rows.push(`Tel. ${issuer.phone.trim()}`);
+  if (issuer.email.trim()) rows.push(issuer.email.trim());
+  if (issuer.partitaIva.trim()) rows.push(`P. IVA ${issuer.partitaIva.trim()}`);
+
+  if (rows.length === 0) return startY;
+
+  const boxHeight = 8 + rows.length * 4.2;
+  let y = ensureSpace(doc, startY, boxHeight + 4, pageHeight);
+
+  doc.setFillColor(248, 250, 252);
+  doc.roundedRect(margin, y, contentWidth, boxHeight, 2.5, 2.5, "F");
+  doc.setDrawColor(...BORDER);
+  doc.roundedRect(margin, y, contentWidth, boxHeight, 2.5, 2.5, "S");
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7);
+  doc.setTextColor(...BLUE);
+  doc.text("EMESSO DA", margin + 6, y + 6);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
+  doc.setTextColor(...GRAY);
+
+  let lineY = y + 10.5;
+  for (const row of rows) {
+    doc.text(row, margin + 6, lineY);
+    lineY += 4.2;
+  }
+
+  return y + boxHeight + 5;
+}
+
+function drawAccettazioneFirma(
+  doc: jsPDF,
+  firmaDataUrl: string | null | undefined,
+  margin: number,
+  contentWidth: number,
+  pageWidth: number,
+  pageHeight: number,
+  startY: number
+): number {
+  const boxHeight = FIRMA_BOX_HEIGHT_MM;
+  let y = ensureSpace(doc, startY, boxHeight + 10, pageHeight);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.5);
+  doc.setTextColor(...BLUE);
+  doc.text("ACCETTAZIONE PREVENTIVO", margin, y);
+  y += 5;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  doc.setTextColor(...GRAY);
+  doc.text("Firma Cliente", margin, y);
+  y += 4;
+
+  doc.setDrawColor(...BORDER);
+  doc.setLineWidth(0.25);
+  doc.setFillColor(255, 255, 255);
+  doc.roundedRect(margin, y, contentWidth, boxHeight, 2, 2, "FD");
+
+  const lineY = y + boxHeight - 3.5;
 
   if (firmaDataUrl?.startsWith("data:image")) {
     try {
       const format = firmaDataUrl.startsWith("data:image/jpeg") ? "JPEG" : "PNG";
-      const imgWidth = 75;
-      const imgHeight = 24;
       doc.addImage(
         firmaDataUrl,
         format,
-        margin + 4,
-        y + 4,
-        imgWidth,
-        imgHeight,
+        margin + 5,
+        y + 1.5,
+        52,
+        9,
         undefined,
         "FAST"
       );
     } catch {
-      // Firma non renderizzabile: lascia solo il riquadro.
+      doc.setDrawColor(...MUTED);
+      doc.setLineWidth(0.25);
+      doc.line(margin + 10, lineY, pageWidth - margin - 10, lineY);
     }
+  } else {
+    doc.setDrawColor(...MUTED);
+    doc.setLineWidth(0.25);
+    doc.line(margin + 10, lineY, pageWidth - margin - 10, lineY);
   }
 
-  return y + boxHeight + 8;
-}
-
-function drawPdfCompanyFooter(
-  doc: jsPDF,
-  margin: number,
-  startY: number,
-  pageWidth: number
-): void {
-  let y = startY;
-
-  doc.setDrawColor(...GREEN);
-  doc.setLineWidth(0.4);
-  doc.line(margin, y, pageWidth - margin, y);
-  y += 7;
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(...GRAY);
-  doc.text(BRAND_PDF.generatedByLine, margin, y);
-  y += 6;
-
-  const { companyName, phone, email } = getCompanyContact();
-
-  if (companyName) {
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.setTextColor(...GREEN);
-    doc.text(companyName, margin, y);
-    y += 6;
-  }
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(70, 70, 70);
-
-  if (phone) {
-    doc.text(`Telefono: ${phone}`, margin, y);
-    y += 5;
-  }
-
-  if (email) {
-    doc.text(`Email: ${email}`, margin, y);
-    y += 5;
-  }
-
-  doc.setFont("helvetica", "italic");
-  doc.setFontSize(8);
-  doc.setTextColor(...GRAY);
-  doc.text(BRAND_PDF.validityLine, margin, y + 1);
+  return y + boxHeight + 4;
 }
 
 function sanitizeFilename(cliente: string): string {
@@ -346,66 +669,31 @@ export async function buildPreventivoPdfDocument(
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 20;
+  const margin = PAGE_MARGIN;
   const contentWidth = pageWidth - margin * 2;
   const totaleGenerale = getPreventivoTotale(preventivo);
   const voci = parseVoci(preventivo.descrizione);
+  const riepilogo = calcolaRiepilogoIva(totaleGenerale, preventivo.aliquota_iva);
+  const issuer = await getPdfIssuerDetails();
+  const clienteDetails = await fetchClienteForPdf(preventivo);
 
-  doc.setFillColor(...DARK);
-  doc.rect(0, 0, pageWidth, HEADER_HEIGHT_MM, "F");
+  await drawPremiumHeader(doc, preventivo, pageWidth, margin);
 
-  const logo = await loadLogoDataUrl();
-  if (logo) {
-    try {
-      await drawHeaderLogo(doc, logo, margin, LOGO_MAX_WIDTH_MM);
-    } catch {
-      drawLogoFallback(doc, margin, (HEADER_HEIGHT_MM - 14) / 2);
-    }
-  } else {
-    drawLogoFallback(doc, margin, (HEADER_HEIGHT_MM - 14) / 2);
-  }
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.setTextColor(220, 220, 220);
-  doc.text("PREVENTIVO", pageWidth - margin, 22, { align: "right" });
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(160, 160, 160);
-  const dateLabel = preventivo.created_at
-    ? new Intl.DateTimeFormat("it-IT", { dateStyle: "long" }).format(
-        new Date(preventivo.created_at)
-      )
-    : new Intl.DateTimeFormat("it-IT", { dateStyle: "long" }).format(new Date());
-  doc.text(`N° ${preventivo.id} · ${dateLabel}`, pageWidth - margin, 30, {
-    align: "right",
-  });
-
-  let y = 62;
-
-  doc.setFillColor(...LIGHT);
-  doc.roundedRect(margin, y, contentWidth, 26, 3, 3, "F");
-  doc.setDrawColor(230, 230, 230);
-  doc.roundedRect(margin, y, contentWidth, 26, 3, 3, "S");
+  let y = HEADER_HEIGHT_MM + 4;
+  y = drawClienteSection(
+    doc,
+    preventivo.cliente,
+    clienteDetails,
+    margin,
+    contentWidth,
+    y
+  );
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
-  doc.setTextColor(...GRAY);
-  doc.text("CLIENTE", margin + 8, y + 9);
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(15);
-  doc.setTextColor(...DARK);
-  doc.text(preventivo.cliente, margin + 8, y + 20);
-
-  y += 38;
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
-  doc.setTextColor(...GRAY);
-  doc.text("VOCI PREVENTIVO", margin, y);
-  y += 8;
+  doc.setTextColor(...BLUE);
+  doc.text("DETTAGLIO PREVENTIVO", margin, y);
+  y += 5;
 
   const colDesc = margin;
   const colQty = margin + 78;
@@ -413,8 +701,8 @@ export async function buildPreventivoPdfDocument(
   const colPrice = margin + 118;
   const colTotal = margin + 148;
 
-  doc.setFillColor(240, 240, 240);
-  doc.rect(margin, y - 2, contentWidth, 8, "F");
+  doc.setFillColor(241, 245, 249);
+  doc.roundedRect(margin, y - 2, contentWidth, 8, 2, 2, "F");
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
   doc.setTextColor(...GRAY);
@@ -423,10 +711,10 @@ export async function buildPreventivoPdfDocument(
   doc.text("U.M.", colUnit, y + 4);
   doc.text("Prezzo", colPrice, y + 4);
   doc.text("Totale", colTotal, y + 4);
-  y += 10;
+  y += 8;
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
+  doc.setFontSize(8.5);
   doc.setTextColor(55, 55, 55);
 
   const rows =
@@ -442,100 +730,44 @@ export async function buildPreventivoPdfDocument(
         ];
 
   for (const voce of rows) {
-    if (y > pageHeight - 50) {
-      doc.addPage();
-      y = 20;
-    }
+    y = ensureSpace(doc, y, 14, pageHeight);
 
     const rigaTotale = voce.quantita * voce.prezzo;
     const descLines = doc.splitTextToSize(voce.descrizione, 72);
-    const rowHeight = Math.max(descLines.length * 5, 7);
+    const rowHeight = Math.max(descLines.length * 4.5, 6);
 
-    doc.text(descLines, colDesc + 2, y + 4);
-    doc.text(String(voce.quantita), colQty, y + 4);
-    doc.text(voce.unita, colUnit, y + 4);
-    doc.text(euroFormatter.format(voce.prezzo), colPrice, y + 4);
-    doc.text(euroFormatter.format(rigaTotale), colTotal, y + 4);
+    doc.text(descLines, colDesc + 2, y + 3.5);
+    doc.text(String(voce.quantita), colQty, y + 3.5);
+    doc.text(voce.unita, colUnit, y + 3.5);
+    doc.text(euroFormatter.format(voce.prezzo), colPrice, y + 3.5);
+    doc.text(euroFormatter.format(rigaTotale), colTotal, y + 3.5);
 
-    doc.setDrawColor(230, 230, 230);
-    doc.line(margin, y + rowHeight + 2, pageWidth - margin, y + rowHeight + 2);
-    y += rowHeight + 4;
+    doc.setDrawColor(...BORDER);
+    doc.line(margin, y + rowHeight + 1.5, pageWidth - margin, y + rowHeight + 1.5);
+    y += rowHeight + 2.5;
   }
 
-  const riepilogo = calcolaRiepilogoIva(totaleGenerale, preventivo.aliquota_iva);
-
-  y += 6;
-  if (y > pageHeight - 72) {
-    doc.addPage();
-    y = 20;
-  }
-
-  doc.setDrawColor(...GREEN);
-  doc.setLineWidth(0.8);
-  doc.line(margin, y, pageWidth - margin, y);
-  y += 10;
-
-  const summaryLabelX = margin + contentWidth * 0.42;
-  const summaryValueX = pageWidth - margin;
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(55, 55, 55);
-
-  const riepilogoLines = [
-    { label: "Imponibile:", value: euroFormatter.format(riepilogo.imponibile) },
-    {
-      label: `IVA ${riepilogo.aliquota}%:`,
-      value: euroFormatter.format(riepilogo.iva),
-    },
-    {
-      label: "Totale IVA inclusa:",
-      value: euroFormatter.format(riepilogo.totaleIvaInclusa),
-    },
-  ];
-
-  for (const line of riepilogoLines) {
-    doc.text(line.label, summaryLabelX, y);
-    doc.text(line.value, summaryValueX, y, { align: "right" });
-    y += 6;
-  }
-
-  y += 6;
-  if (y > pageHeight - 48) {
-    doc.addPage();
-    y = 20;
-  }
-
-  doc.setFillColor(...DARK);
-  doc.roundedRect(margin, y, contentWidth, 28, 3, 3, "F");
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.setTextColor(180, 180, 180);
-  doc.text("TOTALE IVA INCLUSA", margin + 10, y + 11);
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(20);
-  doc.setTextColor(...GREEN);
-  doc.text(
-    euroFormatter.format(riepilogo.totaleIvaInclusa),
-    pageWidth - margin - 10,
-    y + 19,
-    { align: "right" }
-  );
-
-  y += 40;
-
-  y = drawPdfFirmaCliente(
+  y += 2;
+  y = drawRiepilogoEconomico(
     doc,
-    preventivo.firma_cliente,
+    riepilogo,
     margin,
+    contentWidth,
     pageWidth,
     pageHeight,
     y
   );
-
-  drawPdfCompanyFooter(doc, margin, y, pageWidth);
+  y = drawEmessoDaBlock(doc, issuer, margin, contentWidth, pageHeight, y);
+  y = drawAccettazioneFirma(
+    doc,
+    preventivo.firma_cliente,
+    margin,
+    contentWidth,
+    pageWidth,
+    pageHeight,
+    y
+  );
+  drawValidityNote(doc, margin, pageHeight, y);
 
   return { doc, filename };
 }
