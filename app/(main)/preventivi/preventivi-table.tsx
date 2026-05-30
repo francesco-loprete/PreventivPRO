@@ -7,6 +7,7 @@ import {
   createClientePickerState,
   type ClientePickerState,
 } from "@/components/clienti/cliente-picker";
+import { PreventivoTotali } from "@/components/preventivo/preventivo-totali";
 import { VociEditor } from "@/components/preventivo/voci-editor";
 import { FormFeedback } from "@/components/ui/form-feedback";
 import { SearchInput } from "@/components/ui/search-input";
@@ -19,12 +20,16 @@ import {
 } from "@/lib/pdf/share-preventivo-pdf";
 import {
   calcolaTotaleVoci,
-  formatImportoDisplay,
   validateVoci,
   vociFromPreventivo,
   vociToDescrizione,
   type Voce,
 } from "@/lib/preventivi/voci";
+import {
+  DEFAULT_ALIQUOTA_IVA,
+  normalizeAliquotaIva,
+  type AliquotaIva,
+} from "@/lib/preventivi/iva";
 import { createClient } from "@/lib/supabase/client";
 import { matchesAnyField } from "@/lib/utils/search";
 import type { Cliente } from "@/lib/types/cliente";
@@ -57,6 +62,7 @@ export function PreventiviTable({
     createClientePickerState(clienti)
   );
   const [voci, setVoci] = useState<Voce[]>([]);
+  const [aliquotaIva, setAliquotaIva] = useState<AliquotaIva>(DEFAULT_ALIQUOTA_IVA);
   const [loading, setLoading] = useState(false);
   const [duplicatingId, setDuplicatingId] = useState<number | null>(null);
   const [pdfGeneratingId, setPdfGeneratingId] = useState<number | null>(null);
@@ -94,6 +100,7 @@ export function PreventiviTable({
     setVoci(
       vociFromPreventivo(preventivo.descrizione, getPreventivoTotale(preventivo))
     );
+    setAliquotaIva(normalizeAliquotaIva(preventivo.aliquota_iva));
   }
 
   function closeEdit() {
@@ -145,6 +152,7 @@ export function PreventiviTable({
         cliente_id: resolved.clienteId,
         descrizione: vociToDescrizione(validation.voci),
         prezzo: validation.totale,
+        aliquota_iva: aliquotaIva,
       })
       .eq("id", editing.id)
       .eq("user_id", user.id);
@@ -433,12 +441,14 @@ export function PreventiviTable({
               />
             </div>
 
-            <div className="mb-6 text-right">
-              <p className="text-muted text-sm">Totale Generale</p>
-              <p className="text-2xl sm:text-3xl font-bold text-accent">
-                € {formatImportoDisplay(totaleGenerale)}
-              </p>
-            </div>
+            <PreventivoTotali
+              imponibile={totaleGenerale}
+              aliquotaIva={aliquotaIva}
+              onAliquotaIvaChange={setAliquotaIva}
+              disabled={loading}
+              idPrefix="edit"
+              totaleGeneraleClassName="text-2xl sm:text-3xl"
+            />
 
             <FormFeedback
               error={error}

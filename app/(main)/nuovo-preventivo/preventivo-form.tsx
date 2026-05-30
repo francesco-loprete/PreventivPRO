@@ -7,17 +7,21 @@ import {
   createClientePickerState,
   type ClientePickerState,
 } from "@/components/clienti/cliente-picker";
+import { PreventivoTotali } from "@/components/preventivo/preventivo-totali";
 import { VociEditor } from "@/components/preventivo/voci-editor";
 import { FormFeedback } from "@/components/ui/form-feedback";
 import { resolveClienteForPreventivo } from "@/lib/clienti/resolve-cliente";
 import {
   calcolaTotaleVoci,
   createEmptyVoce,
-  formatImportoDisplay,
   validateVoci,
   vociToDescrizione,
   type Voce,
 } from "@/lib/preventivi/voci";
+import {
+  DEFAULT_ALIQUOTA_IVA,
+  type AliquotaIva,
+} from "@/lib/preventivi/iva";
 import { createClient } from "@/lib/supabase/client";
 import type { Cliente } from "@/lib/types/cliente";
 import type { PreventivoInsert } from "@/lib/types/preventivo";
@@ -33,6 +37,7 @@ export function PreventivoForm({ clienti }: PreventivoFormProps) {
     createClientePickerState(clienti)
   );
   const [voci, setVoci] = useState<Voce[]>([createEmptyVoce()]);
+  const [aliquotaIva, setAliquotaIva] = useState<AliquotaIva>(DEFAULT_ALIQUOTA_IVA);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -81,6 +86,7 @@ export function PreventivoForm({ clienti }: PreventivoFormProps) {
         cliente_id: resolved.clienteId,
         descrizione: vociToDescrizione(validation.voci),
         prezzo: validation.totale,
+        aliquota_iva: aliquotaIva,
         user_id: user.id,
       };
 
@@ -94,6 +100,7 @@ export function PreventivoForm({ clienti }: PreventivoFormProps) {
       setSuccess(true);
       setClientePicker(createClientePickerState(clienti));
       setVoci([createEmptyVoce()]);
+      setAliquotaIva(DEFAULT_ALIQUOTA_IVA);
       router.refresh();
     } catch (err) {
       setError(
@@ -141,14 +148,16 @@ export function PreventivoForm({ clienti }: PreventivoFormProps) {
         <FormFeedback loading loadingMessage="Salvataggio in corso..." className="mb-4" />
       )}
 
-      <div className="mt-6 text-right mb-6">
-        <p className="text-muted text-sm">Totale Generale</p>
-        <p className="text-3xl font-bold text-accent">
-          € {formatImportoDisplay(totaleGenerale)}
-        </p>
-      </div>
+      <PreventivoTotali
+        imponibile={totaleGenerale}
+        aliquotaIva={aliquotaIva}
+        onAliquotaIvaChange={setAliquotaIva}
+        disabled={loading}
+        idPrefix="nuovo"
+        totaleGeneraleClassName="text-3xl"
+      />
 
-      <button type="submit" disabled={loading} className="btn-primary px-6 py-4">
+      <button type="submit" disabled={loading} className="btn-primary px-6 py-4 mt-6">
         {loading ? "Salvataggio..." : "Salva Preventivo"}
       </button>
     </form>

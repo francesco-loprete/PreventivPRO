@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { Preventivo } from "@/lib/types/preventivo";
 
 const PREVENTIVO_COLUMNS =
-  "id, cliente, cliente_id, descrizione, prezzo, created_at, user_id" as const;
+  "id, cliente, cliente_id, descrizione, prezzo, aliquota_iva, created_at, user_id" as const;
 
 export type UserPreventiviResult =
   | { ok: true; preventivi: Preventivo[]; userId: string }
