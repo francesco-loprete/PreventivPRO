@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getUserClienti } from "@/lib/clienti/queries";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
+import { getUserPreventivi } from "@/lib/preventivi/queries";
 import { ClientiTable } from "./clienti-table";
 
 export const dynamic = "force-dynamic";
@@ -16,6 +17,8 @@ export default async function ClientiPage() {
   }
 
   const result = await getUserClienti();
+  const preventiviResult = await getUserPreventivi();
+  const preventivi = preventiviResult.ok ? preventiviResult.preventivi : [];
 
   if (!result.ok) {
     if (result.reason === "unauthenticated") {
@@ -46,7 +49,7 @@ export default async function ClientiPage() {
         </Link>
       </div>
 
-      <ClientiTable clienti={result.clienti} />
+      <ClientiTable clienti={result.clienti} preventivi={preventivi} />
     </>
   );
 }

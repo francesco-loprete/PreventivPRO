@@ -1,10 +1,15 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { ClienteDetailModal } from "@/components/clienti/cliente-detail-modal";
+import { FormFeedback } from "@/components/ui/form-feedback";
+import { SearchInput } from "@/components/ui/search-input";
 import { createClient } from "@/lib/supabase/client";
+import { matchesAnyField } from "@/lib/utils/search";
 import type { Cliente } from "@/lib/types/cliente";
 import { rlsClientiErrorHint } from "@/lib/types/cliente";
+import type { Preventivo } from "@/lib/types/preventivo";
 
 const dateFormatter = new Intl.DateTimeFormat("it-IT", {
   dateStyle: "medium",
@@ -12,6 +17,7 @@ const dateFormatter = new Intl.DateTimeFormat("it-IT", {
 
 type ClientiTableProps = {
   clienti: Cliente[];
+  preventivi: Preventivo[];
 };
 
 type ClienteFormData = {
@@ -30,18 +36,43 @@ const emptyForm: ClienteFormData = {
   note: "",
 };
 
-export function ClientiTable({ clienti: initialClienti }: ClientiTableProps) {
+export function ClientiTable({
+  clienti: initialClienti,
+  preventivi,
+}: ClientiTableProps) {
   const router = useRouter();
+  const [searchQuery, setSearchQuery] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [detailCliente, setDetailCliente] = useState<Cliente | null>(null);
   const [editing, setEditing] = useState<Cliente | null>(null);
   const [form, setForm] = useState<ClienteFormData>(emptyForm);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!success) return;
+    const timer = window.setTimeout(() => setSuccess(null), 4000);
+    return () => window.clearTimeout(timer);
+  }, [success]);
+
+  const filteredClienti = useMemo(() => {
+    const query = searchQuery.trim();
+    if (!query) return initialClienti;
+
+    return initialClienti.filter((cliente) =>
+      matchesAnyField(
+        [cliente.nome, cliente.telefono, cliente.email, cliente.indirizzo, cliente.note],
+        query
+      )
+    );
+  }, [initialClienti, searchQuery]);
 
   function openCreate() {
     setEditing(null);
     setForm(emptyForm);
     setError(null);
+    setSuccess(null);
     setShowForm(true);
   }
 
@@ -55,6 +86,7 @@ export function ClientiTable({ clienti: initialClienti }: ClientiTableProps) {
       note: cliente.note ?? "",
     });
     setError(null);
+    setSuccess(null);
     setShowForm(true);
   }
 
@@ -79,6 +111,7 @@ export function ClientiTable({ clienti: initialClienti }: ClientiTableProps) {
 
     setLoading(true);
     setError(null);
+    setSuccess(null);
 
     const supabase = createClient();
     const {
@@ -115,6 +148,9 @@ export function ClientiTable({ clienti: initialClienti }: ClientiTableProps) {
     }
 
     closeForm();
+    setSuccess(
+      editing ? "Cliente aggiornato con successo." : "Cliente aggiunto con successo."
+    );
     router.refresh();
   }
 
@@ -124,6 +160,7 @@ export function ClientiTable({ clienti: initialClienti }: ClientiTableProps) {
 
     setLoading(true);
     setError(null);
+    setSuccess(null);
 
     const supabase = createClient();
     const {
@@ -149,6 +186,7 @@ export function ClientiTable({ clienti: initialClienti }: ClientiTableProps) {
       return;
     }
 
+    setSuccess("Cliente eliminato.");
     router.refresh();
   }
 
@@ -156,7 +194,7 @@ export function ClientiTable({ clienti: initialClienti }: ClientiTableProps) {
     <>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <p className="text-muted text-sm">
-          {initialClienti.length} clienti in archivio
+          {filteredClienti.length} di {initialClienti.length} clienti
         </p>
         <button
           type="button"
@@ -168,11 +206,21 @@ export function ClientiTable({ clienti: initialClienti }: ClientiTableProps) {
         </button>
       </div>
 
-      {error && !showForm && (
-        <p className="mb-4 text-red-400 text-sm" role="alert">
-          {error}
-        </p>
-      )}
+      <div className="mb-6">
+        <SearchInput
+          id="clienti-search"
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Cerca cliente per nome, telefono, email..."
+          disabled={loading}
+        />
+      </div>
+
+      <FormFeedback
+        error={!showForm && !detailCliente ? error : null}
+        success={!showForm && !detailCliente ? success : null}
+        className="mb-4 space-y-2"
+      />
 
       {!initialClienti.length ? (
         <div className="card p-12 text-center">
@@ -180,6 +228,10 @@ export function ClientiTable({ clienti: initialClienti }: ClientiTableProps) {
           <button type="button" onClick={openCreate} className="text-accent font-semibold">
             Aggiungi il primo cliente
           </button>
+        </div>
+      ) : filteredClienti.length === 0 ? (
+        <div className="card p-12 text-center">
+          <p className="text-muted">Nessun cliente corrisponde alla ricerca.</p>
         </div>
       ) : (
         <div className="card overflow-hidden">
@@ -195,7 +247,7 @@ export function ClientiTable({ clienti: initialClienti }: ClientiTableProps) {
                 </tr>
               </thead>
               <tbody>
-                {initialClienti.map((cliente) => (
+                {filteredClienti.map((cliente) => (
                   <tr
                     key={cliente.id}
                     className="border-b border-border/60 hover:bg-slate-900/30 transition-colors"
@@ -213,7 +265,15 @@ export function ClientiTable({ clienti: initialClienti }: ClientiTableProps) {
                         : "—"}
                     </td>
                     <td className="px-4 sm:px-6 py-4">
-                      <div className="flex items-center justify-end gap-2">
+                      <div className="flex items-center justify-end gap-2 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => setDetailCliente(cliente)}
+                          disabled={loading}
+                          className="btn-ghost hover:border-accent hover:text-accent"
+                        >
+                          Dettagli
+                        </button>
                         <button
                           type="button"
                           onClick={() => openEdit(cliente)}
@@ -330,11 +390,12 @@ export function ClientiTable({ clienti: initialClienti }: ClientiTableProps) {
               </div>
             </div>
 
-            {error && (
-              <p className="mt-4 text-red-400 text-sm" role="alert">
-                {error}
-              </p>
-            )}
+            <FormFeedback
+              error={error}
+              loading={loading}
+              loadingMessage="Salvataggio in corso..."
+              className="mt-4 space-y-2"
+            />
 
             <div className="flex flex-col-reverse sm:flex-row gap-3 sm:justify-end mt-6">
               <button
@@ -355,6 +416,14 @@ export function ClientiTable({ clienti: initialClienti }: ClientiTableProps) {
             </div>
           </form>
         </div>
+      )}
+
+      {detailCliente && (
+        <ClienteDetailModal
+          cliente={detailCliente}
+          preventivi={preventivi}
+          onClose={() => setDetailCliente(null)}
+        />
       )}
     </>
   );

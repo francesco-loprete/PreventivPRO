@@ -8,6 +8,7 @@ import {
   type ClientePickerState,
 } from "@/components/clienti/cliente-picker";
 import { VociEditor } from "@/components/preventivo/voci-editor";
+import { FormFeedback } from "@/components/ui/form-feedback";
 import { resolveClienteForPreventivo } from "@/lib/clienti/resolve-cliente";
 import {
   calcolaTotaleVoci,
@@ -128,15 +129,15 @@ export function PreventivoForm({ clienti }: PreventivoFormProps) {
       </div>
 
       {error && (
-        <p className="mb-4 text-red-400 text-sm" role="alert">
-          {error}
-        </p>
+        <FormFeedback error={error} className="mb-4" />
       )}
 
       {success && (
-        <p className="mb-4 text-accent text-sm" role="status">
-          Preventivo salvato su Supabase.
-        </p>
+        <FormFeedback success="Preventivo salvato con successo." className="mb-4" />
+      )}
+
+      {loading && (
+        <FormFeedback loading loadingMessage="Salvataggio in corso..." className="mb-4" />
       )}
 
       <div className="mt-6 text-right mb-6">

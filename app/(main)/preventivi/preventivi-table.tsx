@@ -1,14 +1,17 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
   ClientePicker,
   createClientePickerState,
   type ClientePickerState,
 } from "@/components/clienti/cliente-picker";
 import { VociEditor } from "@/components/preventivo/voci-editor";
+import { FormFeedback } from "@/components/ui/form-feedback";
+import { SearchInput } from "@/components/ui/search-input";
 import { resolveClienteForPreventivo } from "@/lib/clienti/resolve-cliente";
+import { duplicatePreventivo } from "@/lib/preventivi/duplicate-preventivo";
 import { downloadPreventivoPdf, buildPreventivoPdfBlob } from "@/lib/pdf/generate-preventivo-pdf";
 import {
   buildWhatsAppMessage,
@@ -22,6 +25,7 @@ import {
   type Voce,
 } from "@/lib/preventivi/voci";
 import { createClient } from "@/lib/supabase/client";
+import { matchesAnyField } from "@/lib/utils/search";
 import type { Cliente } from "@/lib/types/cliente";
 import type { Preventivo } from "@/lib/types/preventivo";
 import { getPreventivoTotale, rlsErrorHint } from "@/lib/types/preventivo";
@@ -46,20 +50,39 @@ export function PreventiviTable({
   clienti,
 }: PreventiviTableProps) {
   const router = useRouter();
+  const [searchQuery, setSearchQuery] = useState("");
   const [editing, setEditing] = useState<Preventivo | null>(null);
   const [clientePicker, setClientePicker] = useState<ClientePickerState>(() =>
     createClientePickerState(clienti)
   );
   const [voci, setVoci] = useState<Voce[]>([]);
   const [loading, setLoading] = useState(false);
+  const [duplicatingId, setDuplicatingId] = useState<number | null>(null);
   const [pdfGeneratingId, setPdfGeneratingId] = useState<number | null>(null);
   const [whatsappSharingId, setWhatsappSharingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const totaleGenerale = calcolaTotaleVoci(voci);
 
+  useEffect(() => {
+    if (!success) return;
+    const timer = window.setTimeout(() => setSuccess(null), 4000);
+    return () => window.clearTimeout(timer);
+  }, [success]);
+
+  const filteredPreventivi = useMemo(() => {
+    const query = searchQuery.trim();
+    if (!query) return initialPreventivi;
+
+    return initialPreventivi.filter((preventivo) =>
+      matchesAnyField([preventivo.cliente, preventivo.descrizione], query)
+    );
+  }, [initialPreventivi, searchQuery]);
+
   function openEdit(preventivo: Preventivo) {
     setError(null);
+    setSuccess(null);
     setEditing(preventivo);
     setClientePicker(
       createClientePickerState(clienti, {
@@ -89,6 +112,7 @@ export function PreventiviTable({
 
     setLoading(true);
     setError(null);
+    setSuccess(null);
 
     const supabase = createClient();
     const {
@@ -132,6 +156,36 @@ export function PreventiviTable({
     }
 
     closeEdit();
+    setSuccess("Preventivo aggiornato con successo.");
+    router.refresh();
+  }
+
+  async function handleDuplicate(preventivo: Preventivo) {
+    setError(null);
+    setSuccess(null);
+    setDuplicatingId(preventivo.id);
+
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      setDuplicatingId(null);
+      setError("Sessione scaduta. Accedi di nuovo.");
+      return;
+    }
+
+    const result = await duplicatePreventivo(supabase, user.id, preventivo);
+    setDuplicatingId(null);
+
+    if (!result.ok) {
+      setError(result.message + rlsErrorHint(result.code));
+      return;
+    }
+
+    setSuccess("Preventivo duplicato. Modifica la copia qui sotto.");
+    openEdit(result.preventivo);
     router.refresh();
   }
 
@@ -143,6 +197,7 @@ export function PreventiviTable({
 
     setLoading(true);
     setError(null);
+    setSuccess(null);
 
     const supabase = createClient();
     const {
@@ -168,6 +223,7 @@ export function PreventiviTable({
       return;
     }
 
+    setSuccess("Preventivo eliminato.");
     router.refresh();
   }
 
@@ -204,97 +260,141 @@ export function PreventiviTable({
 
   const isRowBusy = (preventivoId: number) =>
     loading ||
+    duplicatingId === preventivoId ||
     pdfGeneratingId === preventivoId ||
     whatsappSharingId === preventivoId;
 
   return (
     <>
-      {error && !editing && (
-        <p className="mb-4 text-red-400 text-sm" role="alert">
-          {error}
-        </p>
-      )}
-
-      <div className="card overflow-hidden p-0">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="border-b border-border bg-slate-950/40">
-                <th className="px-6 py-4 text-sm font-semibold text-muted uppercase tracking-wide">
-                  Cliente
-                </th>
-                <th className="px-6 py-4 text-sm font-semibold text-muted uppercase tracking-wide text-right">
-                  Totale
-                </th>
-                <th className="px-6 py-4 text-sm font-semibold text-muted uppercase tracking-wide">
-                  Data
-                </th>
-                <th className="px-6 py-4 text-sm font-semibold text-muted uppercase tracking-wide text-right">
-                  Azioni
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {initialPreventivi.map((preventivo) => (
-                <tr
-                  key={preventivo.id}
-                  className="border-b border-border/80 last:border-b-0 hover:bg-white/[0.03] transition-colors"
-                >
-                  <td className="px-6 py-4 font-medium text-foreground whitespace-nowrap">
-                    {preventivo.cliente}
-                  </td>
-                  <td className="px-6 py-4 text-accent font-semibold text-right whitespace-nowrap">
-                    {euroFormatter.format(getPreventivoTotale(preventivo))}
-                  </td>
-                  <td className="px-6 py-4 text-muted whitespace-nowrap">
-                    {preventivo.created_at
-                      ? dateFormatter.format(new Date(preventivo.created_at))
-                      : "—"}
-                  </td>
-                  <td className="px-3 sm:px-6 py-4">
-                    <div className="flex items-center justify-end gap-1.5 sm:gap-2 flex-wrap">
-                      <button
-                        type="button"
-                        onClick={() => handlePdf(preventivo)}
-                        disabled={isRowBusy(preventivo.id)}
-                        className="btn-ghost hover:border-accent hover:text-accent min-w-[52px]"
-                        aria-label={`Scarica PDF preventivo ${preventivo.cliente}`}
-                      >
-                        {pdfGeneratingId === preventivo.id ? "PDF..." : "PDF"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleWhatsApp(preventivo)}
-                        disabled={isRowBusy(preventivo.id)}
-                        className="btn-ghost hover:border-[#25D366] hover:text-[#25D366] min-w-[52px]"
-                        aria-label={`Condividi preventivo ${preventivo.cliente} su WhatsApp`}
-                      >
-                        {whatsappSharingId === preventivo.id ? "..." : "WhatsApp"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => openEdit(preventivo)}
-                        disabled={loading || pdfGeneratingId !== null || whatsappSharingId !== null}
-                        className="btn-ghost hover:border-accent hover:text-accent"
-                      >
-                        Modifica
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(preventivo)}
-                        disabled={loading || pdfGeneratingId !== null || whatsappSharingId !== null}
-                        className="px-3 py-1.5 text-sm rounded-lg border border-red-900/60 text-red-400 hover:bg-red-950/80 hover:border-red-700 transition-colors disabled:opacity-50"
-                      >
-                        Elimina
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      <div className="mb-6">
+        <SearchInput
+          id="preventivi-search"
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Cerca per cliente o descrizione..."
+          disabled={loading || duplicatingId !== null}
+        />
       </div>
+
+      <FormFeedback
+        error={!editing ? error : null}
+        success={!editing ? success : null}
+        className="mb-4 space-y-2"
+      />
+
+      {filteredPreventivi.length === 0 ? (
+        <div className="card p-12 text-center">
+          <p className="text-muted">
+            {searchQuery.trim()
+              ? "Nessun preventivo corrisponde alla ricerca."
+              : "Nessun preventivo salvato."}
+          </p>
+        </div>
+      ) : (
+        <div className="card overflow-hidden p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-border bg-slate-950/40">
+                  <th className="px-6 py-4 text-sm font-semibold text-muted uppercase tracking-wide">
+                    Cliente
+                  </th>
+                  <th className="px-6 py-4 text-sm font-semibold text-muted uppercase tracking-wide text-right">
+                    Totale
+                  </th>
+                  <th className="px-6 py-4 text-sm font-semibold text-muted uppercase tracking-wide">
+                    Data
+                  </th>
+                  <th className="px-6 py-4 text-sm font-semibold text-muted uppercase tracking-wide text-right">
+                    Azioni
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredPreventivi.map((preventivo) => (
+                  <tr
+                    key={preventivo.id}
+                    className="border-b border-border/80 last:border-b-0 hover:bg-white/[0.03] transition-colors"
+                  >
+                    <td className="px-6 py-4 font-medium text-foreground whitespace-nowrap">
+                      {preventivo.cliente}
+                    </td>
+                    <td className="px-6 py-4 text-accent font-semibold text-right whitespace-nowrap">
+                      {euroFormatter.format(getPreventivoTotale(preventivo))}
+                    </td>
+                    <td className="px-6 py-4 text-muted whitespace-nowrap">
+                      {preventivo.created_at
+                        ? dateFormatter.format(new Date(preventivo.created_at))
+                        : "—"}
+                    </td>
+                    <td className="px-3 sm:px-6 py-4">
+                      <div className="flex flex-col sm:flex-row sm:flex-wrap items-end sm:items-center justify-end gap-2 min-w-[148px] sm:min-w-0">
+                        <div className="flex items-center justify-end gap-1.5 w-full">
+                          <button
+                            type="button"
+                            onClick={() => handleDuplicate(preventivo)}
+                            disabled={isRowBusy(preventivo.id)}
+                            className="btn-ghost hover:border-accent hover:text-accent shrink-0 px-3 py-1.5 text-sm font-medium"
+                            aria-label={`Duplica preventivo ${preventivo.cliente}`}
+                          >
+                            {duplicatingId === preventivo.id ? "..." : "Duplica"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => openEdit(preventivo)}
+                            disabled={
+                              loading ||
+                              duplicatingId !== null ||
+                              pdfGeneratingId !== null ||
+                              whatsappSharingId !== null
+                            }
+                            className="btn-ghost hover:border-accent hover:text-accent shrink-0 px-3 py-1.5 text-sm font-medium"
+                          >
+                            Modifica
+                          </button>
+                        </div>
+                        <div className="flex items-center justify-end gap-1.5 flex-wrap w-full">
+                          <button
+                            type="button"
+                            onClick={() => handlePdf(preventivo)}
+                            disabled={isRowBusy(preventivo.id)}
+                            className="btn-ghost hover:border-accent hover:text-accent min-w-[52px] shrink-0"
+                            aria-label={`Scarica PDF preventivo ${preventivo.cliente}`}
+                          >
+                            {pdfGeneratingId === preventivo.id ? "PDF..." : "PDF"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleWhatsApp(preventivo)}
+                            disabled={isRowBusy(preventivo.id)}
+                            className="btn-ghost hover:border-[#25D366] hover:text-[#25D366] min-w-[52px] shrink-0"
+                            aria-label={`Condividi preventivo ${preventivo.cliente} su WhatsApp`}
+                          >
+                            {whatsappSharingId === preventivo.id ? "..." : "WhatsApp"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(preventivo)}
+                            disabled={
+                              loading ||
+                              duplicatingId !== null ||
+                              pdfGeneratingId !== null ||
+                              whatsappSharingId !== null
+                            }
+                            className="px-3 py-1.5 text-sm rounded-lg border border-red-900/60 text-red-400 hover:bg-red-950/80 hover:border-red-700 transition-colors disabled:opacity-50 shrink-0"
+                          >
+                            Elimina
+                          </button>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {editing && (
         <div
@@ -339,11 +439,12 @@ export function PreventiviTable({
               </p>
             </div>
 
-            {error && (
-              <p className="mb-4 text-red-400 text-sm" role="alert">
-                {error}
-              </p>
-            )}
+            <FormFeedback
+              error={error}
+              loading={loading}
+              loadingMessage="Salvataggio in corso..."
+              className="mb-4 space-y-2"
+            />
 
             <div className="flex flex-col-reverse sm:flex-row gap-3 sm:justify-end">
               <button
