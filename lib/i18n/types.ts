@@ -217,6 +217,16 @@ export type Messages = {
     save: string;
     saveSuccess: string;
     saveError: string;
+    deleteAccountSection: string;
+    deleteAccountWarning: string;
+    deleteAccountDetails: string;
+    deleteAccountButton: string;
+    deleteAccountProceed: string;
+    deleteAccountFinal: string;
+    deleteAccountDeleting: string;
+    deleteAccountSuccess: string;
+    deleteAccountError: string;
+    deleteAccountNotConfigured: string;
   };
   lingua: {
     title: string;

@@ -212,6 +212,19 @@ export const itMessages: Messages = {
     save: "Salva impostazioni",
     saveSuccess: "Impostazioni salvate con successo.",
     saveError: "Errore durante il salvataggio delle impostazioni.",
+    deleteAccountSection: "Elimina account",
+    deleteAccountWarning:
+      "Questa azione è irreversibile. Verranno eliminati definitivamente il tuo account, tutti i clienti e tutti i preventivi associati.",
+    deleteAccountDetails:
+      "I dati salvati localmente nel browser (logo e impostazioni azienda) verranno rimossi da questo dispositivo.",
+    deleteAccountButton: "Elimina account",
+    deleteAccountProceed: "Continua con l'eliminazione",
+    deleteAccountFinal: "Elimina account definitivamente",
+    deleteAccountDeleting: "Eliminazione in corso...",
+    deleteAccountSuccess: "Account eliminato con successo. Reindirizzamento al login...",
+    deleteAccountError: "Impossibile eliminare l'account. Riprova più tardi.",
+    deleteAccountNotConfigured:
+      "Eliminazione account non disponibile: configurazione server incompleta.",
   },
   lingua: {
     title: "Lingua",

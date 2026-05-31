@@ -24,3 +24,20 @@ export function isSupabaseConfigured(): boolean {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   );
 }
+
+export function getSupabaseServiceRoleKey(): string {
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!key) {
+    throw new Error(
+      "Manca SUPABASE_SERVICE_ROLE_KEY. Configurala in .env.local o su Vercel."
+    );
+  }
+  return key;
+}
+
+export function isAccountDeletionConfigured(): boolean {
+  return Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+}

@@ -49,3 +49,8 @@ export function saveSettings(settings: AppSettings): void {
   if (typeof window === "undefined") return;
   localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
 }
+
+export function clearSettings(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(SETTINGS_STORAGE_KEY);
+}

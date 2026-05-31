@@ -210,6 +210,19 @@ export const enMessages: Messages = {
     save: "Save settings",
     saveSuccess: "Settings saved successfully.",
     saveError: "Error saving settings.",
+    deleteAccountSection: "Delete account",
+    deleteAccountWarning:
+      "This action is irreversible. Your account, all clients, and all quotes will be permanently deleted.",
+    deleteAccountDetails:
+      "Data stored locally in the browser (logo and company settings) will be removed from this device.",
+    deleteAccountButton: "Delete account",
+    deleteAccountProceed: "Continue with deletion",
+    deleteAccountFinal: "Delete account permanently",
+    deleteAccountDeleting: "Deleting account...",
+    deleteAccountSuccess: "Account deleted successfully. Redirecting to sign in...",
+    deleteAccountError: "Unable to delete the account. Please try again later.",
+    deleteAccountNotConfigured:
+      "Account deletion unavailable: incomplete server configuration.",
   },
   lingua: {
     title: "Language",
