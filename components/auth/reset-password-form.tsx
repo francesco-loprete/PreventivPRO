@@ -4,6 +4,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { useTranslations } from "@/components/i18n/locale-provider";
+import {
+  clearAuthParamsFromUrl,
+  recoverSessionFromUrl,
+} from "@/lib/auth/recover-session-from-url";
 import { createClient } from "@/lib/supabase/client";
 
 export function ResetPasswordForm() {
@@ -20,19 +24,31 @@ export function ResetPasswordForm() {
   useEffect(() => {
     let cancelled = false;
 
-    async function verifySession() {
+    async function prepareSession() {
       const supabase = createClient();
+      const recovery = await recoverSessionFromUrl(supabase);
+
+      if (cancelled) return;
+
+      if (recovery.status === "recovered") {
+        clearAuthParamsFromUrl();
+      } else if (recovery.status === "error") {
+        setError(recovery.message);
+        setCheckingSession(false);
+        return;
+      }
+
       const {
         data: { session },
       } = await supabase.auth.getSession();
 
-      if (!cancelled) {
-        setHasSession(Boolean(session));
-        setCheckingSession(false);
-      }
+      if (cancelled) return;
+
+      setHasSession(Boolean(session));
+      setCheckingSession(false);
     }
 
-    verifySession();
+    prepareSession();
 
     return () => {
       cancelled = true;
@@ -59,15 +75,17 @@ export function ResetPasswordForm() {
     const supabase = createClient();
     const { error: updateError } = await supabase.auth.updateUser({ password });
 
-    setLoading(false);
-
     if (updateError) {
+      setLoading(false);
       setError(updateError.message);
       return;
     }
 
+    await supabase.auth.signOut();
+
+    setLoading(false);
     setSuccess(t("passwordReset.success"));
-    router.push("/");
+    router.push("/login");
     router.refresh();
   }
 
@@ -79,7 +97,7 @@ export function ResetPasswordForm() {
     return (
       <div className="space-y-5">
         <p className="text-red-400 text-sm" role="alert">
-          {t("passwordReset.invalidSession")}
+          {error ?? t("passwordReset.invalidSession")}
         </p>
         <Link href="/login" className="block w-full btn-primary py-4 text-center">
           {t("passwordReset.requestNewLink")}

@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
 import { IosSplashLinks } from "@/components/pwa/ios-splash-links";
 import { LocaleProvider } from "@/components/i18n/locale-provider";
+import { RecoveryLinkHandler } from "@/components/auth/recovery-link-handler";
 import {
   APP_BACKGROUND_COLOR,
   APP_DESCRIPTION,
@@ -112,7 +113,10 @@ export default function RootLayout({
         <IosSplashLinks />
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground">
-        <LocaleProvider>{children}</LocaleProvider>
+        <LocaleProvider>
+          <RecoveryLinkHandler />
+          {children}
+        </LocaleProvider>
         <PwaInstallPrompt />
       </body>
     </html>
