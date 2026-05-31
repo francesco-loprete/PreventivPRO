@@ -84,8 +84,7 @@ export function ResetPasswordForm() {
     await supabase.auth.signOut();
 
     setLoading(false);
-    setSuccess(t("passwordReset.success"));
-    router.push("/login");
+    router.replace("/login?reset=success");
     router.refresh();
   }
 

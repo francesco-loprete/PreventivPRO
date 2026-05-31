@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { useTranslations } from "@/components/i18n/locale-provider";
+import { sanitizeInternalRedirectPath } from "@/lib/auth/safe-redirect";
 import { createClient } from "@/lib/supabase/client";
 
 type LoginMode = "login" | "forgot" | "forgot-sent";
@@ -12,8 +13,11 @@ export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const t = useTranslations();
-  const redirectTo = searchParams.get("redirectTo") ?? "/";
+  const redirectTo = sanitizeInternalRedirectPath(
+    searchParams.get("redirectTo")
+  );
   const authError = searchParams.get("error");
+  const resetSuccess = searchParams.get("reset") === "success";
 
   const [mode, setMode] = useState<LoginMode>("login");
   const [email, setEmail] = useState("");
@@ -147,6 +151,12 @@ export function LoginForm() {
 
   return (
     <form onSubmit={handleLoginSubmit} className="space-y-5">
+      {resetSuccess && (
+        <p className="text-accent text-sm" role="status">
+          {t("passwordReset.success")}
+        </p>
+      )}
+
       <div>
         <label htmlFor="email" className="block mb-2 text-muted text-sm">
           {t("common.email")}

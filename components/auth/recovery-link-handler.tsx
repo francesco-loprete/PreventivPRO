@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-
-const AUTH_PATH_PREFIXES = ["/auth/", "/login", "/registrazione", "/reset-password"];
+import { sanitizeInternalRedirectPath } from "@/lib/auth/safe-redirect";
 
 function shouldHandleRecoveryLink(pathname: string, hash: string): boolean {
   if (!hash || hash.length <= 1) return false;
@@ -10,9 +9,12 @@ function shouldHandleRecoveryLink(pathname: string, hash: string): boolean {
     return false;
   }
 
-  return !AUTH_PATH_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(prefix)
-  );
+  // Pagine che gestiscono già hash/token in locale.
+  if (pathname === "/auth/confirm" || pathname === "/reset-password") {
+    return false;
+  }
+
+  return true;
 }
 
 export function RecoveryLinkHandler() {
@@ -21,7 +23,10 @@ export function RecoveryLinkHandler() {
     if (!shouldHandleRecoveryLink(pathname, hash)) return;
 
     const params = new URLSearchParams(search);
-    const next = params.get("next") ?? "/reset-password";
+    const next = sanitizeInternalRedirectPath(
+      params.get("next"),
+      "/reset-password"
+    );
     const confirmUrl = `/auth/confirm?next=${encodeURIComponent(next)}${hash}`;
 
     window.location.replace(confirmUrl);

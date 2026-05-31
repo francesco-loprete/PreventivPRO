@@ -1,4 +1,5 @@
 import type { EmailOtpType, SupabaseClient } from "@supabase/supabase-js";
+import { sanitizeInternalRedirectPath } from "@/lib/auth/safe-redirect";
 
 export type RecoverSessionResult =
   | { status: "recovered" }
@@ -90,13 +91,6 @@ export function resolveAuthNextPath(
   type: string | null
 ): string {
   const next = searchParams.get("next") ?? searchParams.get("redirectTo");
-  if (next) {
-    return next.startsWith("/") ? next : `/${next}`;
-  }
-
-  if (type === "recovery") {
-    return "/reset-password";
-  }
-
-  return "/";
+  const fallback = type === "recovery" ? "/reset-password" : "/";
+  return sanitizeInternalRedirectPath(next, fallback);
 }

@@ -8,6 +8,17 @@ function loginErrorRedirect(origin: string) {
   return NextResponse.redirect(new URL("/login?error=auth_callback", origin));
 }
 
+/**
+ * Quando Supabase usa il flusso implicito i token arrivano nell'hash (#access_token=…),
+ * che il server non vede. Restituiamo HTML che inoltra hash + query a /auth/confirm.
+ */
+function confirmFallbackResponse(confirmPath: string) {
+  const html = `<!DOCTYPE html><html lang="it"><head><meta charset="utf-8"><title>Conferma accesso</title><script>location.replace(${JSON.stringify(confirmPath)}+location.hash)</script></head><body></body></html>`;
+  return new NextResponse(html, {
+    headers: { "Content-Type": "text/html; charset=utf-8" },
+  });
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
@@ -16,13 +27,12 @@ export async function GET(request: NextRequest) {
   const next = resolveAuthNextPath(searchParams, type);
 
   if (!code && !tokenHash) {
-    const confirmUrl = new URL("/auth/confirm", origin);
-    confirmUrl.searchParams.set("next", next);
-    return NextResponse.redirect(confirmUrl);
+    const confirmPath = `/auth/confirm?next=${encodeURIComponent(next)}`;
+    return confirmFallbackResponse(confirmPath);
   }
 
   const redirectUrl = new URL(next, origin);
-  let response = NextResponse.redirect(redirectUrl);
+  const response = NextResponse.redirect(redirectUrl);
 
   const supabase = createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
     cookies: {

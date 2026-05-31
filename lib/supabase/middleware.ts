@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { sanitizeInternalRedirectPath } from "@/lib/auth/safe-redirect";
 import { getSupabaseAnonKey, getSupabaseUrl, isSupabaseConfigured } from "@/lib/supabase/env";
 
 const PROTECTED_PREFIXES = ["/preventivi", "/nuovo-preventivo", "/clienti"];
@@ -55,10 +56,11 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (user && isAuthRoute(pathname)) {
-    const homeUrl = request.nextUrl.clone();
-    homeUrl.pathname = "/";
-    homeUrl.search = "";
-    return NextResponse.redirect(homeUrl);
+    const destination = request.nextUrl.searchParams.get("redirectTo");
+    const targetUrl = request.nextUrl.clone();
+    targetUrl.pathname = sanitizeInternalRedirectPath(destination);
+    targetUrl.search = "";
+    return NextResponse.redirect(targetUrl);
   }
 
   return supabaseResponse;
