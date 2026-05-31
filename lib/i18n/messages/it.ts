@@ -47,6 +47,24 @@ export const itMessages: Messages = {
     authCallbackError:
       "Conferma email o link di accesso non valido. Riprova.",
     emailPlaceholder: "nome@esempio.it",
+    forgotLink: "Password dimenticata?",
+    forgotSubtitle: "Inserisci la tua email per ricevere il link di reset.",
+    sendResetLink: "Invia link di reset",
+    sendingResetLink: "Invio...",
+    resetEmailSent:
+      "Se l'email è registrata, riceverai a breve il link per reimpostare la password.",
+    backToLogin: "Torna al login",
+  },
+  passwordReset: {
+    title: "Nuova password",
+    subtitle: "Scegli una nuova password per il tuo account.",
+    newPassword: "Nuova password",
+    confirmPassword: "Conferma password",
+    updatePassword: "Aggiorna password",
+    updating: "Aggiornamento...",
+    success: "Password aggiornata con successo.",
+    invalidSession: "Link non valido o scaduto.",
+    requestNewLink: "Richiedi un nuovo link",
   },
   register: {
     title: "Registrati",

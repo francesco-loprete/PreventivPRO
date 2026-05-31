@@ -54,6 +54,23 @@ export type Messages = {
     register: string;
     authCallbackError: string;
     emailPlaceholder: string;
+    forgotLink: string;
+    forgotSubtitle: string;
+    sendResetLink: string;
+    sendingResetLink: string;
+    resetEmailSent: string;
+    backToLogin: string;
+  };
+  passwordReset: {
+    title: string;
+    subtitle: string;
+    newPassword: string;
+    confirmPassword: string;
+    updatePassword: string;
+    updating: string;
+    success: string;
+    invalidSession: string;
+    requestNewLink: string;
   };
   register: {
     title: string;
