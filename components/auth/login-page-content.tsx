@@ -2,13 +2,18 @@
 
 import { AuthCard } from "@/components/auth/auth-card";
 import { LoginForm } from "@/components/auth/login-form";
+import { PrivacyPolicyLink } from "@/components/legal/privacy-policy-link";
 import { useTranslations } from "@/components/i18n/locale-provider";
 
 export function LoginPageContent() {
   const t = useTranslations();
 
   return (
-    <AuthCard title={t("login.title")} subtitle={t("login.subtitle")}>
+    <AuthCard
+      title={t("login.title")}
+      subtitle={t("login.subtitle")}
+      footer={<PrivacyPolicyLink />}
+    >
       <LoginForm />
     </AuthCard>
   );
