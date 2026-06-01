@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
 import { IosSplashLinks } from "@/components/pwa/ios-splash-links";
 import { LocaleProvider } from "@/components/i18n/locale-provider";
 import { RecoveryLinkHandler } from "@/components/auth/recovery-link-handler";
@@ -117,7 +116,6 @@ export default function RootLayout({
           <RecoveryLinkHandler />
           {children}
         </LocaleProvider>
-        <PwaInstallPrompt />
       </body>
     </html>
   );
