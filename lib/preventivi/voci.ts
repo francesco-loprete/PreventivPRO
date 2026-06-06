@@ -14,18 +14,17 @@ export function createEmptyVoce(): Voce {
   };
 }
 
-/** Rimuove zeri iniziali e converte in intero (quantità). */
-export function parseQuantitaInput(raw: string): number {
-  const trimmed = raw.trim();
-  if (!trimmed) return 0;
-
-  const normalized = trimmed.replace(/^0+(?=\d)/, "") || "0";
-  const parsed = parseInt(normalized, 10);
-  return Number.isFinite(parsed) ? parsed : 0;
+function formatDecimalDisplay(value: number): string {
+  if (!Number.isFinite(value)) return "0,00";
+  return value.toLocaleString("it-IT", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+    useGrouping: false,
+  });
 }
 
-/** Rimuove zeri iniziali e converte in decimale (prezzo). */
-export function parsePrezzoInput(raw: string): number {
+/** Rimuove zeri iniziali e converte in decimale (quantità o prezzo). */
+function parseDecimalInput(raw: string): number {
   const trimmed = raw.trim().replace(",", ".");
   if (!trimmed || trimmed === ".") return 0;
 
@@ -34,23 +33,26 @@ export function parsePrezzoInput(raw: string): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+export function parseQuantitaInput(raw: string): number {
+  return parseDecimalInput(raw);
+}
+
+export function parsePrezzoInput(raw: string): number {
+  return parseDecimalInput(raw);
+}
+
 export function formatQuantitaDisplay(quantita: number): string {
   if (!Number.isFinite(quantita) || quantita <= 0) return "";
-  return String(Math.trunc(quantita));
+  return formatDecimalDisplay(quantita);
 }
 
 export function formatPrezzoDisplay(prezzo: number): string {
   if (!Number.isFinite(prezzo) || prezzo <= 0) return "";
-  return String(prezzo);
+  return formatDecimalDisplay(prezzo);
 }
 
 export function formatImportoDisplay(importo: number): string {
-  if (!Number.isFinite(importo)) return "0";
-  return importo.toLocaleString("it-IT", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-    useGrouping: false,
-  });
+  return formatDecimalDisplay(importo);
 }
 
 export function calcolaTotaleRiga(quantita: number, prezzo: number): number {
@@ -111,7 +113,7 @@ export function vociToDescrizione(voci: Voce[]): string {
     .map((v) => {
       const unita = v.unita.trim() || "pz";
       const totale = v.quantita * v.prezzo;
-      return `${v.descrizione.trim()} (${v.quantita} ${unita} × €${v.prezzo} = €${totale})`;
+      return `${v.descrizione.trim()} (${formatImportoDisplay(v.quantita)} ${unita} × €${formatImportoDisplay(v.prezzo)} = €${formatImportoDisplay(totale)})`;
     })
     .join("\n");
 }

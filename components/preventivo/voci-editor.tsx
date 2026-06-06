@@ -115,9 +115,8 @@ export function VociEditor({
                 <label className={mobileLabel}>{t("preventivo.qty")}</label>
                 <input
                   type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  placeholder="1"
+                  inputMode="decimal"
+                  placeholder="1,00"
                   value={formatQuantitaDisplay(voce.quantita)}
                   onChange={(e) =>
                     aggiornaVoce(index, "quantita", parseQuantitaInput(e.target.value))

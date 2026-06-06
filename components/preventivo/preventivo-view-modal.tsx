@@ -11,6 +11,8 @@ import {
 import {
   calcolaTotaleRiga,
   formatImportoDisplay,
+  formatPrezzoDisplay,
+  formatQuantitaDisplay,
   parseVociFromDescrizione,
 } from "@/lib/preventivi/voci";
 import { getDateLocale } from "@/lib/i18n/get-messages";
@@ -29,15 +31,6 @@ export function PreventivoViewModal({
   const t = useTranslations();
   const { locale } = useLocale();
   const dateLocale = getDateLocale(locale);
-
-  const euroFormatter = useMemo(
-    () =>
-      new Intl.NumberFormat(dateLocale, {
-        style: "currency",
-        currency: "EUR",
-      }),
-    [dateLocale]
-  );
 
   const dateFormatter = useMemo(
     () =>
@@ -128,13 +121,16 @@ export function PreventivoViewModal({
                   className="border-b border-border/60 last:border-b-0"
                 >
                   <td className="px-4 py-3">{voce.descrizione}</td>
-                  <td className="px-4 py-3 text-right tabular-nums">{voce.quantita}</td>
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    {formatQuantitaDisplay(voce.quantita)}
+                  </td>
                   <td className="px-4 py-3 text-muted">{voce.unita}</td>
                   <td className="px-4 py-3 text-right tabular-nums">
-                    {euroFormatter.format(voce.prezzo)}
+                    € {formatPrezzoDisplay(voce.prezzo)}
                   </td>
                   <td className="px-4 py-3 text-right font-medium tabular-nums">
-                    {euroFormatter.format(
+                    €{" "}
+                    {formatImportoDisplay(
                       calcolaTotaleRiga(voce.quantita, voce.prezzo)
                     )}
                   </td>
@@ -164,7 +160,7 @@ export function PreventivoViewModal({
               <div className="flex justify-between gap-4 text-base pt-2">
                 <dt className="font-semibold">{t("preventivo.totalWithVat")}</dt>
                 <dd className="font-bold text-accent tabular-nums">
-                  {euroFormatter.format(totaleVisualizzato)}
+                  € {formatImportoDisplay(totaleVisualizzato)}
                 </dd>
               </div>
             </>
@@ -172,7 +168,7 @@ export function PreventivoViewModal({
             <div className="flex justify-between gap-4 text-base">
               <dt className="font-semibold">{t("preventivo.total")}</dt>
               <dd className="font-bold text-accent tabular-nums">
-                {euroFormatter.format(totaleVisualizzato)}
+                € {formatImportoDisplay(totaleVisualizzato)}
               </dd>
             </div>
           )}
