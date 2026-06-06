@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { Voce } from "@/lib/preventivi/voci";
 import {
   calcolaTotaleRiga,
@@ -20,6 +21,22 @@ const rowGrid =
 const mobileLabel =
   "md:hidden text-xs text-muted uppercase tracking-wide mb-1 block";
 
+function quantitaToEditString(quantita: number): string {
+  if (!Number.isFinite(quantita) || quantita <= 0) return "";
+  return String(quantita).replace(".", ",");
+}
+
+function sanitizeQuantitaDraft(raw: string): string {
+  const normalized = raw.replace(/\./g, ",");
+  const commaIndex = normalized.indexOf(",");
+  if (commaIndex === -1) {
+    return normalized.replace(/[^\d]/g, "");
+  }
+  const intPart = normalized.slice(0, commaIndex).replace(/[^\d]/g, "");
+  const decPart = normalized.slice(commaIndex + 1).replace(/[^\d]/g, "");
+  return `${intPart},${decPart}`;
+}
+
 type VociEditorProps = {
   voci: Voce[];
   onChange: (voci: Voce[]) => void;
@@ -34,6 +51,10 @@ export function VociEditor({
   idPrefix = "voce",
 }: VociEditorProps) {
   const t = useTranslations();
+  const [quantitaFocusedIndex, setQuantitaFocusedIndex] = useState<number | null>(
+    null
+  );
+  const [quantitaDraft, setQuantitaDraft] = useState<Record<number, string>>({});
 
   function aggiornaVoce(index: number, campo: keyof Voce, valore: string | number) {
     onChange(
@@ -55,7 +76,44 @@ export function VociEditor({
 
   function rimuoviVoce(index: number) {
     if (voci.length <= 1) return;
+    if (quantitaFocusedIndex === index) {
+      setQuantitaFocusedIndex(null);
+    }
+    setQuantitaDraft((prev) => {
+      const next: Record<number, string> = {};
+      for (const [key, value] of Object.entries(prev)) {
+        const rowIndex = Number(key);
+        if (rowIndex < index) next[rowIndex] = value;
+        if (rowIndex > index) next[rowIndex - 1] = value;
+      }
+      return next;
+    });
     onChange(voci.filter((_, i) => i !== index));
+  }
+
+  function handleQuantitaFocus(index: number, quantita: number) {
+    setQuantitaFocusedIndex(index);
+    setQuantitaDraft((prev) => ({
+      ...prev,
+      [index]: quantitaToEditString(quantita),
+    }));
+  }
+
+  function handleQuantitaChange(index: number, raw: string) {
+    const draft = sanitizeQuantitaDraft(raw);
+    setQuantitaDraft((prev) => ({ ...prev, [index]: draft }));
+    aggiornaVoce(index, "quantita", parseQuantitaInput(draft));
+  }
+
+  function handleQuantitaBlur(index: number) {
+    const draft = quantitaDraft[index] ?? "";
+    aggiornaVoce(index, "quantita", parseQuantitaInput(draft));
+    setQuantitaFocusedIndex(null);
+    setQuantitaDraft((prev) => {
+      const next = { ...prev };
+      delete next[index];
+      return next;
+    });
   }
 
   return (
@@ -117,10 +175,14 @@ export function VociEditor({
                   type="text"
                   inputMode="decimal"
                   placeholder="1,00"
-                  value={formatQuantitaDisplay(voce.quantita)}
-                  onChange={(e) =>
-                    aggiornaVoce(index, "quantita", parseQuantitaInput(e.target.value))
+                  value={
+                    quantitaFocusedIndex === index
+                      ? (quantitaDraft[index] ?? "")
+                      : formatQuantitaDisplay(voce.quantita)
                   }
+                  onFocus={() => handleQuantitaFocus(index, voce.quantita)}
+                  onChange={(e) => handleQuantitaChange(index, e.target.value)}
+                  onBlur={() => handleQuantitaBlur(index)}
                   className={`${inputCompact} md:text-center`}
                   disabled={disabled}
                   aria-label={t("preventivo.qty")}
