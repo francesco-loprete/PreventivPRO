@@ -55,6 +55,8 @@ export function VociEditor({
     null
   );
   const [quantitaDraft, setQuantitaDraft] = useState<Record<number, string>>({});
+  const [prezzoFocusedIndex, setPrezzoFocusedIndex] = useState<number | null>(null);
+  const [prezzoDraft, setPrezzoDraft] = useState<Record<number, string>>({});
 
   function aggiornaVoce(index: number, campo: keyof Voce, valore: string | number) {
     onChange(
@@ -79,7 +81,19 @@ export function VociEditor({
     if (quantitaFocusedIndex === index) {
       setQuantitaFocusedIndex(null);
     }
+    if (prezzoFocusedIndex === index) {
+      setPrezzoFocusedIndex(null);
+    }
     setQuantitaDraft((prev) => {
+      const next: Record<number, string> = {};
+      for (const [key, value] of Object.entries(prev)) {
+        const rowIndex = Number(key);
+        if (rowIndex < index) next[rowIndex] = value;
+        if (rowIndex > index) next[rowIndex - 1] = value;
+      }
+      return next;
+    });
+    setPrezzoDraft((prev) => {
       const next: Record<number, string> = {};
       for (const [key, value] of Object.entries(prev)) {
         const rowIndex = Number(key);
@@ -110,6 +124,31 @@ export function VociEditor({
     aggiornaVoce(index, "quantita", parseQuantitaInput(draft));
     setQuantitaFocusedIndex(null);
     setQuantitaDraft((prev) => {
+      const next = { ...prev };
+      delete next[index];
+      return next;
+    });
+  }
+
+  function handlePrezzoFocus(index: number, prezzo: number) {
+    setPrezzoFocusedIndex(index);
+    setPrezzoDraft((prev) => ({
+      ...prev,
+      [index]: quantitaToEditString(prezzo),
+    }));
+  }
+
+  function handlePrezzoChange(index: number, raw: string) {
+    const draft = sanitizeQuantitaDraft(raw);
+    setPrezzoDraft((prev) => ({ ...prev, [index]: draft }));
+    aggiornaVoce(index, "prezzo", parsePrezzoInput(draft));
+  }
+
+  function handlePrezzoBlur(index: number) {
+    const draft = prezzoDraft[index] ?? "";
+    aggiornaVoce(index, "prezzo", parsePrezzoInput(draft));
+    setPrezzoFocusedIndex(null);
+    setPrezzoDraft((prev) => {
       const next = { ...prev };
       delete next[index];
       return next;
@@ -207,11 +246,15 @@ export function VociEditor({
                 <input
                   type="text"
                   inputMode="decimal"
-                  placeholder="100"
-                  value={formatPrezzoDisplay(voce.prezzo)}
-                  onChange={(e) =>
-                    aggiornaVoce(index, "prezzo", parsePrezzoInput(e.target.value))
+                  placeholder="100,00"
+                  value={
+                    prezzoFocusedIndex === index
+                      ? (prezzoDraft[index] ?? "")
+                      : formatPrezzoDisplay(voce.prezzo)
                   }
+                  onFocus={() => handlePrezzoFocus(index, voce.prezzo)}
+                  onChange={(e) => handlePrezzoChange(index, e.target.value)}
+                  onBlur={() => handlePrezzoBlur(index)}
                   className={`${inputCompact} md:text-center`}
                   disabled={disabled}
                   aria-label={t("preventivo.price")}
