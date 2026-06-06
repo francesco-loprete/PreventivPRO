@@ -452,20 +452,10 @@ async function drawPremiumHeader(
 
   const metaY = logoY + LOGO_MAX_HEIGHT_MM * 0.45;
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10.5);
-  doc.setTextColor(...BLUE);
-  doc.text(
-    ctx.t("pdf.quoteNumberFull", { id: preventivo.id }),
-    pageWidth - margin,
-    metaY,
-    { align: "right" }
-  );
-
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(...GRAY);
-  doc.text(dateLabel, pageWidth - margin, metaY + 6, { align: "right" });
+  doc.text(dateLabel, pageWidth - margin, metaY, { align: "right" });
 }
 
 function drawClienteSection(

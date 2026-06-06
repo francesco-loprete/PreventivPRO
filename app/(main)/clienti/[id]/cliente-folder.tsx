@@ -53,8 +53,7 @@ function PreventivoCard({
       <div className="flex items-start justify-between gap-3 mb-4">
         <div className="min-w-0">
           <p className="text-xs text-muted uppercase tracking-wide">
-            {t("preventivo.viewTitle")}{" "}
-            {t("preventivo.viewNumber", { id: preventivo.id })}
+            {t("preventivo.viewTitle")}
           </p>
           <p className="text-sm text-muted mt-1">
             {preventivo.created_at
@@ -89,7 +88,7 @@ function PreventivoCard({
           onClick={onPdf}
           disabled={isBusy}
           className="btn-ghost hover:border-accent hover:text-accent w-full py-2.5 text-sm font-medium"
-          aria-label={`${t("actions.pdfAria")} ${preventivo.id}`}
+          aria-label={`${t("actions.pdfAria")} ${preventivo.cliente}`}
         >
           {pdfGeneratingId === preventivo.id
             ? t("actions.pdfLoading")
@@ -100,7 +99,7 @@ function PreventivoCard({
           onClick={onWhatsApp}
           disabled={isBusy}
           className="btn-ghost hover:border-[#25D366] hover:text-[#25D366] w-full py-2.5 text-sm font-medium"
-          aria-label={`${t("actions.whatsappAria")} ${preventivo.id}`}
+          aria-label={`${t("actions.whatsappAria")} ${preventivo.cliente}`}
         >
           {whatsappSharingId === preventivo.id ? "..." : t("actions.whatsapp")}
         </button>

@@ -147,7 +147,7 @@ export const itMessages: Messages = {
     createFirst: "Crea il primo preventivo",
     searchPlaceholder: "Cerca per cliente o descrizione...",
     deleted: "Preventivo eliminato.",
-    deleteConfirm: "Eliminare il preventivo N° {id} per {client}?",
+    deleteConfirm: "Eliminare il preventivo per {client}?",
     duplicated: "Preventivo duplicato con successo.",
     duplicatedEdit: "Preventivo duplicato. Modifica la copia qui sotto.",
   },
@@ -181,7 +181,6 @@ export const itMessages: Messages = {
     addRow: "+ Aggiungi Riga",
     workPlaceholder: "Lavoro...",
     viewTitle: "Preventivo",
-    viewNumber: "N° {id}",
     issuedOn: "Emesso il",
     vatSummary: "Riepilogo IVA",
   },
@@ -243,14 +242,12 @@ export const itMessages: Messages = {
   },
   whatsapp: {
     message:
-      "Buongiorno {client}, le invio il preventivo N° {id} per un importo di {total}.",
+      "Buongiorno {client}, le invio il preventivo per un importo di {total}.",
     attachmentNote: "In allegato troverà il PDF del preventivo.",
   },
   pdf: {
     tagline: "Preventivo professionale",
     subtitle: "PREVENTIVO",
-    quoteNumber: "N° {id}",
-    quoteNumberFull: "Preventivo N° {id}",
     client: "CLIENTE",
     tel: "Tel.",
     summary: "RIEPILOGO ECONOMICO",

@@ -145,7 +145,7 @@ export const enMessages: Messages = {
     createFirst: "Create your first quote",
     searchPlaceholder: "Search by client or description...",
     deleted: "Quote deleted.",
-    deleteConfirm: "Delete quote No. {id} for {client}?",
+    deleteConfirm: "Delete the quote for {client}?",
     duplicated: "Quote duplicated successfully.",
     duplicatedEdit: "Quote duplicated. Edit the copy below.",
   },
@@ -179,7 +179,6 @@ export const enMessages: Messages = {
     addRow: "+ Add line",
     workPlaceholder: "Work item...",
     viewTitle: "Quote",
-    viewNumber: "No. {id}",
     issuedOn: "Issued on",
     vatSummary: "VAT summary",
   },
@@ -241,14 +240,12 @@ export const enMessages: Messages = {
   },
   whatsapp: {
     message:
-      "Hello {client}, please find quote No. {id} for {total}.",
+      "Hello {client}, please find the quote for {total}.",
     attachmentNote: "The quote PDF is attached.",
   },
   pdf: {
     tagline: "Professional quote",
     subtitle: "QUOTE",
-    quoteNumber: "No. {id}",
-    quoteNumberFull: "Quote No. {id}",
     client: "CLIENT",
     tel: "Tel.",
     summary: "FINANCIAL SUMMARY",

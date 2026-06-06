@@ -186,7 +186,6 @@ export type Messages = {
     addRow: string;
     workPlaceholder: string;
     viewTitle: string;
-    viewNumber: string;
     issuedOn: string;
     vatSummary: string;
   };
@@ -250,8 +249,6 @@ export type Messages = {
   pdf: {
     tagline: string;
     subtitle: string;
-    quoteNumber: string;
-    quoteNumberFull: string;
     client: string;
     tel: string;
     summary: string;

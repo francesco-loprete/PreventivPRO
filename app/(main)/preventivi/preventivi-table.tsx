@@ -93,7 +93,6 @@ export function PreventiviTable({
   async function handleDelete(preventivo: Preventivo) {
     const confirmed = window.confirm(
       t("preventivi.deleteConfirm", {
-        id: preventivo.id,
         client: preventivo.cliente,
       })
     );

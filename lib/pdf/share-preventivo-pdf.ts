@@ -32,7 +32,6 @@ export function buildWhatsAppMessage(
 
   return t("whatsapp.message", {
     client: preventivo.cliente,
-    id: preventivo.id,
     total: totaleFormatted,
   });
 }

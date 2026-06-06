@@ -81,11 +81,8 @@ export function PreventivoViewModal({
       <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden card p-4 sm:p-6 md:p-8 shadow-2xl shadow-black/40 min-w-0">
         <div className="flex items-start justify-between gap-4 mb-6">
           <div>
-            <h2 id="preventivo-view-title" className="text-2xl font-bold">
-              {t("preventivo.viewTitle")}{" "}
-              <span className="text-accent">
-                {t("preventivo.viewNumber", { id: preventivo.id })}
-              </span>
+            <h2 id="preventivo-view-title" className="text-2xl font-bold text-accent">
+              {t("preventivo.viewTitle")}
             </h2>
             <p className="text-muted text-sm mt-1">{preventivo.cliente}</p>
             <p className="text-muted text-xs mt-1">
