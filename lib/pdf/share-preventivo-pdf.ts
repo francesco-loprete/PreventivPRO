@@ -4,6 +4,7 @@ import {
   getDateLocale,
   getWhatsAppMessages,
 } from "@/lib/i18n/get-messages";
+import { deliverPdfBlob } from "@/lib/pdf/deliver-pdf-blob";
 import type { Preventivo } from "@/lib/types/preventivo";
 import { getPreventivoTotale } from "@/lib/types/preventivo";
 
@@ -36,17 +37,8 @@ export function buildWhatsAppMessage(
   });
 }
 
-export function downloadPdfBlob(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  link.rel = "noopener";
-  link.style.display = "none";
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+export async function downloadPdfBlob(blob: Blob, filename: string): Promise<void> {
+  await deliverPdfBlob(blob, filename);
 }
 
 export async function sharePdfWithNativeSheet(
@@ -98,7 +90,7 @@ export async function sharePreventivoPdfViaWhatsApp(
     }
   }
 
-  downloadPdfBlob(blob, filename);
+  await downloadPdfBlob(blob, filename);
   openWhatsAppText(`${message}\n\n${whatsapp.attachmentNote}`);
 
   return "downloaded";

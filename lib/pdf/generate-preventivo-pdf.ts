@@ -11,7 +11,7 @@ import {
 import { SETTINGS_STORAGE_KEY } from "@/lib/settings/storage";
 import { calcolaRiepilogoIva } from "@/lib/preventivi/iva";
 import { parseVociFromDescrizione as parseVoci } from "@/lib/preventivi/voci";
-import { downloadPdfBlob } from "@/lib/pdf/share-preventivo-pdf";
+import { deliverPdfBlob } from "@/lib/pdf/deliver-pdf-blob";
 import {
   createTranslator,
   getDateLocale,
@@ -841,13 +841,8 @@ export async function buildPreventivoPdfBlob(
 }
 
 export async function downloadPreventivoPdf(preventivo: Preventivo): Promise<void> {
-  const { doc, filename } = await buildPreventivoPdfDocument(preventivo);
-
-  try {
-    downloadPdfBlob(doc.output("blob"), filename);
-  } catch {
-    doc.save(filename);
-  }
+  const { blob, filename } = await buildPreventivoPdfBlob(preventivo);
+  await deliverPdfBlob(blob, filename);
 }
 
 export async function generatePreventivoPdf(preventivo: Preventivo): Promise<void> {
